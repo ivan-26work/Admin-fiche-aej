@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>AEJ • VU - Téléchargements</title>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <!-- Styles CSS -->
+  <link rel="stylesheet" href="css/vu.css">
+</head>
+<body>
+  <!-- LOADER INITIAL -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-card">
+      <div class="loading-title">AEJ • VU</div>
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <a href="index.html" class="back-btn" aria-label="Retour">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <span class="page-title">VU • TÉLÉCHARGEMENTS</span>
+    </div>
+    <div class="header-right">
+      <a href="para.html" class="settings-btn" aria-label="Paramètres">
+        <i class="fas fa-cog"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL 30/70 -->
+  <main class="dashboard">
+    <!-- COLONNE GAUCHE (30%) -->
+    <aside class="colonne-gauche">
+      <!-- Recherche -->
+      <div class="search-section">
+        <h3><i class="fas fa-search"></i> Rechercher</h3>
+        <div class="search-container">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-input" id="searchInput" placeholder="Nom, prénom ou matricule...">
+        </div>
+      </div>
+
+      <!-- Statistiques -->
+      <div class="stats-section">
+        <h3><i class="fas fa-chart-pie"></i> Statistiques</h3>
+        <div class="stats-list">
+          <div class="stat-item">
+            <span class="stat-label">Total téléchargements</span>
+            <span class="stat-value" id="statTotal">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Stagiaires uniques</span>
+            <span class="stat-value" id="statStagiaires">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Ce mois</span>
+            <span class="stat-value" id="statMois">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Détails du téléchargement sélectionné -->
+      <div class="details-section">
+        <h3><i class="fas fa-info-circle"></i> Détails du téléchargement</h3>
+        <div class="details-card" id="detailsCard">
+          <div class="details-empty">
+            <i class="fas fa-hand-pointer"></i>
+            <p>Sélectionnez un téléchargement</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- COLONNE DROITE (70%) -->
+    <section class="colonne-droite">
+      <!-- Filtres dates -->
+      <div class="filters-section">
+        <div class="filters-scroll" id="filtersScroll">
+          <div class="filters-row" id="filtersRow">
+            <!-- Les filtres dates seront injectés par JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Liste des téléchargements (grille 4 cartes) -->
+      <div class="content-frame" id="contentFrame">
+        <div class="downloads-container" id="downloadsContainer">
+          <!-- Le contenu sera injecté par JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script src="js/theme.js"></script>
+  <script src="js/vu.js"></script>
+</body>
+</html>
