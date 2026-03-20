@@ -1,1544 +1,1180 @@
 // ===== index.js =====
-// Version AEJ - Sans compteur de téléchargements
+// Version AEJ Desktop - COMPLÈTE avec toutes les fonctionnalités
+// Structure claire, fonctions nommées, code commenté
 
 (function() {
-  // ---------------------------------------------
-  // CONFIGURATION
-  // ---------------------------------------------
+  // =============================================
+  // 1. CONFIGURATION ET ÉTAT INITIAL
+  // =============================================
+  
   const SUPABASE_URL = 'https://lnwrwvwunwsqeuluupis.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud3J3dnd1bndzcWV1bHV1cGlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjU2ODYsImV4cCI6MjA4OTM0MTY4Nn0.gfnPMtR3mNBFMTo3GtZ9t1A9_8gxEHY4loLgLdLJxLs';
 
-  // ---------------------------------------------
-  // ÉTAT INTERNE
-  // ---------------------------------------------
+  // État global
+  let supabase = null;
   let currentUser = null;
   let allFiles = [];
   let categories = [];
-  let selectedCategories = new Set();
+  let selectedCategories = new Set(['all']);
   let selectedDates = new Set();
-  let supabase = null;
+  let searchTimeout = null;
   let currentPreviewFile = null;
   
-  // État multi-sélection fichiers
+  // État multi-sélection
   let selectionMode = false;
   let selectedFiles = new Set();
-  let longPressTimer = null;
-  const LONG_PRESS_DELAY = 1000;
   
-  // État suppression catégorie
-  let categoryDeleteMode = false;
-  let selectedCategoryForDelete = null;
-  let categoryLongPressTimer = null;
-  const CATEGORY_LONG_PRESS_DELAY = 1100;
-  
-  // Cache session
-  let sessionCache = {
-    timestamp: null,
-    user: null
-  };
-  
-  // Upload state
-  let uploadState = {
-    active: false,
-    totalFiles: 0,
-    completedFiles: 0,
-    currentCategoryId: null
-  };
+  // Upload state (table attente)
+  let pendingFiles = [];
+  let selectedCategoryId = null;
+  let uploadTimer = null;
+  let timerInterval = null;
+  let uploadExpirationTime = null;
 
-  // ---------------------------------------------
-  // ÉLÉMENTS DOM
-  // ---------------------------------------------
+  // =============================================
+  // 2. RÉFÉRENCES DOM
+  // =============================================
+  
+  // Header
   const loadingOverlay = document.getElementById('loadingOverlay');
-  const syncLoader = document.getElementById('syncLoader');
-  const deleteLoader = document.getElementById('deleteLoader');
-  const mainContent = document.getElementById('mainContent');
-  const searchContainer = document.getElementById('searchContainer');
+  const settingsBtn = document.getElementById('settingsBtn');
+  
+  // Colonne gauche
   const searchInput = document.getElementById('searchInput');
-  const multiSelectActions = document.getElementById('multiSelectActions');
-  const selectCount = document.getElementById('selectCount');
+  const searchNom = document.getElementById('searchNom');
+  const searchMatricule = document.getElementById('searchMatricule');
+  const searchCategorie = document.getElementById('searchCategorie');
+  const searchDate = document.getElementById('searchDate');
+  const categoriesList = document.getElementById('categoriesList');
+  const statsFichiers = document.getElementById('statsFichiers');
+  const statsCategories = document.getElementById('statsCategories');
+  const statsTelechargements = document.getElementById('statsTelechargements');
+  const storageUsageSpan = document.getElementById('storageUsage');
+  const storageProgressBar = document.getElementById('storageProgressBar');
+  const storageWarning = document.getElementById('storageWarning');
+  
+  // Colonne droite
+  const filtersRow = document.getElementById('filtersRow');
+  const filesContainer = document.getElementById('filesContainer');
+  const selectModeBtn = document.getElementById('selectModeBtn');
   const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
   const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
   const cancelSelectBtn = document.getElementById('cancelSelectBtn');
-  const settingsBtn = document.getElementById('settingsBtn');
-  const fabContainer = document.getElementById('fabContainer');
+  const selectCountSpan = document.getElementById('selectCount');
   const uploadBtn = document.getElementById('uploadBtn');
-  const statsRow = document.getElementById('statsRow');
-  const categoriesRow = document.getElementById('categoriesRow');
-  const addCategoryBtn = document.getElementById('addCategoryBtn');
+  
+  // Overlay upload
+  const uploadOverlay = document.getElementById('uploadOverlay');
+  const uploadOverlayBackdrop = document.getElementById('uploadOverlayBackdrop');
+  const closeUploadOverlayBtn = document.getElementById('closeUploadOverlayBtn');
+  const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+  const confirmUploadBtn = document.getElementById('confirmUploadBtn');
+  const uploadCategoryList = document.getElementById('uploadCategoryList');
+  const pendingFilesList = document.getElementById('pendingFilesList');
+  const addFilesToUploadBtn = document.getElementById('addFilesToUploadBtn');
+  const uploadTimerDisplay = document.getElementById('uploadTimer');
+  const fileDetailsContent = document.getElementById('fileDetailsContent');
+  
+  // Overlay catégories
   const categoryOverlay = document.getElementById('categoryOverlay');
   const categoryOverlayBackdrop = document.getElementById('categoryOverlayBackdrop');
-  const categoryOverlayContent = document.getElementById('categoryOverlayContent');
+  const closeCategoryOverlayBtn = document.getElementById('closeCategoryOverlayBtn');
+  const closeCategoryFooterBtn = document.getElementById('closeCategoryFooterBtn');
+  const newCategoryName = document.getElementById('newCategoryName');
+  const confirmAddCategory = document.getElementById('confirmAddCategory');
+  const categoriesCheckboxList = document.getElementById('categoriesCheckboxList');
+  const deleteCategoriesBtn = document.getElementById('deleteCategoriesBtn');
   
-  // Overlay
+  // Overlay aperçu
   const fileOverlay = document.getElementById('fileOverlay');
   const overlayBackdrop = document.getElementById('overlayBackdrop');
+  const overlayCloseBtn = document.getElementById('overlayCloseBtn');
   const overlayFilename = document.getElementById('overlayFilename');
-  const overlayContent = document.getElementById('overlayContent');
-  const overlayMetadata = document.getElementById('overlayMetadata');
-  const overlayDownload = document.getElementById('overlayDownload');
-  const overlayDelete = document.getElementById('overlayDelete');
-  const overlayFullscreen = document.getElementById('overlayFullscreen');
-  const overlayClose = document.getElementById('overlayClose');
+  const previewMatricule = document.getElementById('previewMatricule');
+  const previewNom = document.getElementById('previewNom');
+  const previewPrenom = document.getElementById('previewPrenom');
+  const previewDesignation = document.getElementById('previewDesignation');
+  const previewTaille = document.getElementById('previewTaille');
+  const previewDate = document.getElementById('previewDate');
+  const previewCategorie = document.getElementById('previewCategorie');
+  const previewFiliere = document.getElementById('previewFiliere');
+  const saveMetadataBtn = document.getElementById('saveMetadataBtn');
+  const pdfIframe = document.getElementById('pdfIframe');
+  const pdfViewer = document.getElementById('pdfViewer');
+  const previewDownloadBtn = document.getElementById('previewDownloadBtn');
+  const previewDeleteBtn = document.getElementById('previewDeleteBtn');
+  const previewFullscreenBtn = document.getElementById('previewFullscreenBtn');
+  
+  // Loaders
+  const syncLoader = document.getElementById('syncLoader');
+  const deleteLoader = document.getElementById('deleteLoader');
 
-  // ---------------------------------------------
-  // Overlay d'erreur de format
-  // ---------------------------------------------
-  const formatErrorOverlay = document.createElement('div');
-  formatErrorOverlay.className = 'format-error-overlay hidden';
-  formatErrorOverlay.innerHTML = `
-    <div class="overlay-backdrop"></div>
-    <div class="format-error-container">
-      <div class="format-error-header">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Format de fichier invalide</span>
-      </div>
-      <div class="format-error-content">
-        <p>Le nom du fichier doit respecter le format :</p>
-        <p class="format-example">[Matricule] [Lettre] [Nom] [Désignation].pdf</p>
-        <p class="format-example-small">Exemple : 19167122 F IPOTE fiche.pdf</p>
-        <p class="format-detail">Détails :</p>
-        <ul>
-          <li>Matricule : chiffres</li>
-          <li>Lettre : une lettre (ex: F, M, ...)</li>
-          <li>Nom : au moins 2 lettres majuscules</li>
-        </ul>
-      </div>
-      <div class="format-error-actions">
-        <button class="format-error-btn" id="formatErrorClose">Compris</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(formatErrorOverlay);
-
-  // Style pour l'overlay de format
-  const style = document.createElement('style');
-  style.textContent = `
-    .format-error-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 5000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-    .format-error-overlay:not(.hidden) {
-      opacity: 1;
-      pointer-events: all;
-    }
-    .format-error-container {
-      position: relative;
-      background: white;
-      border-radius: 30px;
-      width: 400px;
-      max-width: 90vw;
-      overflow: hidden;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-      z-index: 5001;
-    }
-    .format-error-header {
-      background: linear-gradient(135deg, #ff7e9f, #4a90e2);
-      color: white;
-      padding: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 600;
-    }
-    .format-error-header i {
-      font-size: 1.2rem;
-    }
-    .format-error-content {
-      padding: 1.5rem;
-      background: #f8f9fa;
-    }
-    .format-example {
-      font-family: monospace;
-      background: #eef0f5;
-      padding: 0.5rem;
-      border-radius: 8px;
-      margin: 0.5rem 0;
-      font-weight: 500;
-    }
-    .format-example-small {
-      font-size: 0.9rem;
-      color: #666;
-      margin-bottom: 1rem;
-    }
-    .format-detail {
-      font-weight: 600;
-      margin: 0.5rem 0 0.2rem 0;
-    }
-    .format-error-content ul {
-      margin: 0.2rem 0 0 1.5rem;
-      color: #555;
-    }
-    .format-error-actions {
-      padding: 1rem;
-      display: flex;
-      justify-content: center;
-      border-top: 1px solid #eee;
-    }
-    .format-error-btn {
-      padding: 0.5rem 2rem;
-      background: linear-gradient(135deg, #4a90e2, #ff7e9f);
-      color: white;
-      border: none;
-      border-radius: 30px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .format-error-btn:hover {
-      transform: translateY(-2px);
-    }
-
-    /* Barre d'actions pour suppression catégorie */
-    .category-delete-actions {
-      flex: 1;
-      max-width: 400px;
-      margin: 0 1.5rem;
-      background: white;
-      border-radius: 40px;
-      box-shadow: var(--neu-shadow-medium);
-      height: 46px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1rem;
-      transition: all 0.3s;
-      border: double 2px transparent;
-      background-image: linear-gradient(white, white), 
-                        linear-gradient(135deg, #4a90e2, #ff7e9f);
-      background-origin: border-box;
-      background-clip: padding-box, border-box;
-    }
-    .category-delete-actions.hidden {
-      display: none;
-    }
-    .category-delete-label {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-dark);
-      white-space: nowrap;
-    }
-    .category-delete-buttons {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-    .delete-category-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: white;
-      box-shadow: var(--neu-shadow-small);
-      color: #d32f2f;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .delete-category-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--neu-shadow-medium);
-      background: #ffebee;
-    }
-    .cancel-category-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: white;
-      box-shadow: var(--neu-shadow-small);
-      color: var(--text-dark);
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .cancel-category-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--neu-shadow-medium);
-      color: var(--primary-pink);
-    }
-  `;
-  document.head.appendChild(style);
-
-  // ---------------------------------------------
-  // INITIALISATION
-  // ---------------------------------------------
+  // =============================================
+  // 3. INITIALISATION
+  // =============================================
+  
   async function init() {
     try {
-      await waitForDom();
-      
-      const sessionPromise = initSupabase().then(() => checkSession());
-      const timeoutPromise = new Promise(resolve => setTimeout(resolve, 1500));
-      
-      await Promise.race([sessionPromise, timeoutPromise]);
-      
+      await initSupabase();
+      await checkSession();
       setupEventListeners();
-      setupOverlayListeners();
-      setupMultiSelectListeners();
-      setupCategoryDeleteListeners();
-      setupFormatErrorOverlay();
-      
+      startStorageMonitoring();
     } catch (error) {
-      console.warn('Erreur initialisation, redirection vers auth');
-      redirectToAuth();
+      console.error('Erreur initialisation:', error);
+      showNotification('Erreur de chargement', 'error');
     }
   }
-
-  function waitForDom() {
-    return new Promise(resolve => {
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', resolve);
-      } else {
-        resolve();
-      }
-    });
-  }
-
+  
   async function initSupabase() {
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
+    if (window.supabase?.createClient) {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      return;
+    } else {
+      await loadScript();
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-    await loadSupabaseScript();
-    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-      throw new Error('Supabase non disponible');
-    }
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
-
-  function loadSupabaseScript() {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector('script[src*="supabase"]')) {
-        const checkInterval = setInterval(() => {
-          if (window.supabase) {
-            clearInterval(checkInterval);
-            resolve();
-          }
-        }, 50);
-        setTimeout(() => reject(new Error('Timeout')), 5000);
-        return;
-      }
+  
+  function loadScript() {
+    return new Promise(resolve => {
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-      script.onload = () => window.supabase ? resolve() : reject();
-      script.onerror = reject;
+      script.onload = resolve;
       document.head.appendChild(script);
     });
   }
-
-  // ---------------------------------------------
-  // VÉRIFICATION SESSION
-  // ---------------------------------------------
+  
   async function checkSession() {
     try {
-      if (!supabase) throw new Error('Supabase non initialisé');
-      
-      if (sessionCache.timestamp && (Date.now() - sessionCache.timestamp < 30000)) {
-        currentUser = sessionCache.user;
-        if (currentUser) {
-          loadUserData();
-          return;
-        }
-      }
-      
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        redirectToAuth();
+        window.location.href = 'auth.html';
         return;
       }
-      
       currentUser = user;
-      sessionCache = {
-        timestamp: Date.now(),
-        user: user
-      };
-      
-      loadUserData();
-      
+      await loadUserData();
     } catch (error) {
       console.error('Erreur session:', error);
-      redirectToAuth();
+      window.location.href = 'auth.html';
     }
   }
-
-  function redirectToAuth() {
-    setTimeout(() => {
-      window.location.href = 'auth.html';
-    }, 500);
-  }
-
-  // ---------------------------------------------
-  // CHARGEMENT DES DONNÉES
-  // ---------------------------------------------
+  
+  // =============================================
+  // 4. CHARGEMENT DES DONNÉES
+  // =============================================
+  
   async function loadUserData() {
     try {
-      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-      
+      loadingOverlay?.classList.remove('hidden');
       await Promise.all([
         loadCategories(),
-        loadFiles()
+        loadFiles(),
+        loadTelechargementsStats(),
+        loadStorageStats()
       ]);
-      
       updateUI();
-      
     } catch (error) {
-      console.error('Erreur chargement données:', error);
+      console.error('Erreur chargement:', error);
+      showNotification('Erreur chargement des données', 'error');
     } finally {
-      setTimeout(() => {
-        if (loadingOverlay) loadingOverlay.classList.add('hidden');
-      }, 300);
+      setTimeout(() => loadingOverlay?.classList.add('hidden'), 500);
     }
   }
-
+  
   async function loadCategories() {
-    if (!currentUser || !supabase) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('dossiers')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .is('parent_id', null)
-        .order('nom');
-      
-      if (error) throw error;
-      
-      categories = data || [];
-      
-      if (uploadBtn) {
-        uploadBtn.disabled = categories.length === 0;
-      }
-      
-    } catch (error) {
-      console.error('Erreur chargement catégories:', error);
-      categories = [];
-    }
+    const { data, error } = await supabase
+      .from('dossiers')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .is('parent_id', null)
+      .order('nom');
+    if (!error) categories = data || [];
+    if (statsCategories) statsCategories.textContent = categories.length;
   }
-
+  
   async function loadFiles() {
-    if (!currentUser || !supabase) return;
+    const { data: filesData, error: filesError } = await supabase
+      .from('fichiers')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('date_upload', { ascending: false });
+    if (filesError) return;
     
+    const { data: liaisonsData } = await supabase
+      .from('dossier_fichiers')
+      .select('*')
+      .in('fichier_id', filesData.map(f => f.id));
+    
+    const liaisonsMap = {};
+    (liaisonsData || []).forEach(l => liaisonsMap[l.fichier_id] = l.dossier_id);
+    
+    allFiles = filesData.map(file => ({ ...file, categorie_id: liaisonsMap[file.id] || null }));
+    if (statsFichiers) statsFichiers.textContent = allFiles.length;
+  }
+  
+  async function loadTelechargementsStats() {
     try {
-      const { data: filesData, error: filesError } = await supabase
-        .from('fichiers')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('date_upload', { ascending: false });
-      
-      if (filesError) throw filesError;
-      
-      const { data: liaisonsData, error: liaisonsError } = await supabase
-        .from('dossier_fichiers')
-        .select('*')
-        .in('fichier_id', filesData.map(f => f.id));
-      
-      if (liaisonsError) throw liaisonsError;
-      
-      const liaisonsMap = {};
-      liaisonsData.forEach(l => {
-        liaisonsMap[l.fichier_id] = l.dossier_id;
-      });
-      
-      allFiles = filesData.map(file => ({
-        ...file,
-        categorie_id: liaisonsMap[file.id] || null
-      }));
-      
-    } catch (error) {
-      console.error('Erreur chargement fichiers:', error);
-      allFiles = [];
+      const { data } = await supabase.from('telechargements').select('*');
+      if (statsTelechargements) statsTelechargements.textContent = data?.length || 0;
+    } catch (e) {
+      if (statsTelechargements) statsTelechargements.textContent = '0';
     }
   }
-
-  // ---------------------------------------------
-  // GESTION CATÉGORIES
-  // ---------------------------------------------
-  async function createCategory() {
-    const nom = prompt('Nom de la nouvelle catégorie :');
-    if (!nom || !nom.trim()) return;
-    
+  
+  async function loadStorageStats() {
     try {
-      if (!supabase || !currentUser) return;
-      
-      const { error } = await supabase
-        .from('dossiers')
-        .insert({
-          user_id: currentUser.id,
-          nom: nom.trim(),
-          parent_id: null
-        });
-      
-      if (error) throw error;
-      
-      await loadCategories();
+      const { data } = await supabase.storage.from('fichiers').list();
+      let totalSize = 0;
+      for (const file of data || []) {
+        if (file.metadata?.size) totalSize += file.metadata.size;
+      }
+      const totalMo = (totalSize / (1024 * 1024)).toFixed(1);
+      const maxMo = 1024; // 1 Go
+      const percent = (totalSize / (1024 * 1024 * 1024)) * 100;
+      if (storageUsageSpan) storageUsageSpan.textContent = `${totalMo} Mo / 1 Go`;
+      if (storageProgressBar) storageProgressBar.style.width = `${Math.min(percent, 100)}%`;
+      if (storageWarning) {
+        if (percent > 90) storageWarning.classList.remove('hidden');
+        else storageWarning.classList.add('hidden');
+      }
+    } catch (e) {
+      console.warn('Erreur calcul stockage:', e);
+    }
+  }
+  
+  // =============================================
+  // 5. MISE À JOUR DE L'INTERFACE
+  // =============================================
+  
+  function updateUI() {
+    updateCategoriesUI();
+    updateFiltersUI();
+    renderFiles();
+  }
+  
+  function updateCategoriesUI() {
+    if (!categoriesList) return;
+    const fileCount = {};
+    categories.forEach(c => fileCount[c.id] = 0);
+    allFiles.forEach(f => {
+      if (f.categorie_id && fileCount[f.categorie_id] !== undefined) fileCount[f.categorie_id]++;
+    });
+    
+    let html = `<div class="category-item"><label class="checkbox-label"><input type="checkbox" class="category-checkbox" id="catAll" ${selectedCategories.has('all') ? 'checked' : ''}><span class="category-name">Toutes les catégories</span><span class="category-count">${allFiles.length}</span></label></div>`;
+    categories.forEach(c => {
+      html += `<div class="category-item"><label class="checkbox-label"><input type="checkbox" class="category-checkbox" data-category-id="${c.id}" ${selectedCategories.has(c.id) ? 'checked' : ''}><span class="category-name">${escapeHtml(c.nom)}</span><span class="category-count">${fileCount[c.id] || 0}</span></label></div>`;
+    });
+    categoriesList.innerHTML = html;
+    
+    document.getElementById('catAll')?.addEventListener('change', e => {
+      if (e.target.checked) {
+        selectedCategories.clear();
+        selectedCategories.add('all');
+      } else {
+        selectedCategories.delete('all');
+      }
       updateCategoriesUI();
-      
-      if (categories.length === 1 && uploadBtn) {
-        uploadBtn.disabled = false;
-      }
-      
-      showNotification('Catégorie créée', 'success');
-      
-    } catch (error) {
-      console.error('Erreur création catégorie:', error);
-      showNotification('Erreur lors de la création', 'error');
-    }
-  }
-
-  async function deleteCategory(categoryId) {
-    if (!categoryId) return;
-    
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return;
-    
-    const confirmMsg = `Supprimer définitivement la catégorie "${category.nom}" et TOUS ses fichiers ?`;
-    
-    if (!confirm(confirmMsg)) return;
-    
-    showDeleteLoader(`Catégorie ${category.nom}`);
-    
-    try {
-      // Récupérer tous les fichiers de cette catégorie
-      const filesToDelete = allFiles.filter(f => f.categorie_id === categoryId);
-      
-      for (const file of filesToDelete) {
-        // Supprimer liaisons
-        await supabase
-          .from('dossier_fichiers')
-          .delete()
-          .eq('fichier_id', file.id);
-        
-        // Supprimer du storage
-        await supabase.storage
-          .from('fichiers')
-          .remove([file.chemin_storage]);
-        
-        // Supprimer de la table fichiers
-        await supabase
-          .from('fichiers')
-          .delete()
-          .eq('id', file.id);
-      }
-      
-      // Supprimer la catégorie
-      await supabase
-        .from('dossiers')
-        .delete()
-        .eq('id', categoryId);
-      
-      await loadCategories();
-      await loadFiles();
-      updateUI();
-      
-      showNotification('Catégorie supprimée', 'success');
-      
-    } catch (error) {
-      console.error('Erreur suppression catégorie:', error);
-      showNotification('Erreur lors de la suppression', 'error');
-    } finally {
-      hideDeleteLoader();
-      exitCategoryDeleteMode();
-    }
-  }
-
-  function enterCategoryDeleteMode(categoryId) {
-    if (categoryDeleteMode || selectionMode) return;
-    
-    categoryDeleteMode = true;
-    selectedCategoryForDelete = categoryId;
-    
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return;
-    
-    // Créer ou montrer la barre d'actions
-    let deleteBar = document.getElementById('categoryDeleteActions');
-    if (!deleteBar) {
-      deleteBar = document.createElement('div');
-      deleteBar.id = 'categoryDeleteActions';
-      deleteBar.className = 'category-delete-actions';
-      deleteBar.innerHTML = `
-        <span class="category-delete-label">Supprimer "${category.nom}" ?</span>
-        <div class="category-delete-buttons">
-          <button class="delete-category-btn" id="confirmDeleteCategory" title="Supprimer">
-            <i class="fas fa-trash"></i>
-          </button>
-          <button class="cancel-category-btn" id="cancelDeleteCategory" title="Annuler">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      `;
-      
-      // Insérer après la barre de recherche
-      if (searchContainer && searchContainer.parentNode) {
-        searchContainer.parentNode.insertBefore(deleteBar, searchContainer.nextSibling);
-      }
-      
-      document.getElementById('confirmDeleteCategory')?.addEventListener('click', () => {
-        deleteCategory(selectedCategoryForDelete);
-      });
-      
-      document.getElementById('cancelDeleteCategory')?.addEventListener('click', () => {
-        exitCategoryDeleteMode();
-      });
-    } else {
-      const label = deleteBar.querySelector('.category-delete-label');
-      if (label) label.textContent = `Supprimer "${category.nom}" ?`;
-      deleteBar.classList.remove('hidden');
-    }
-    
-    if (searchContainer) searchContainer.classList.add('hidden');
-    if (multiSelectActions) multiSelectActions.classList.add('hidden');
-  }
-
-  function exitCategoryDeleteMode() {
-    categoryDeleteMode = false;
-    selectedCategoryForDelete = null;
-    
-    const deleteBar = document.getElementById('categoryDeleteActions');
-    if (deleteBar) deleteBar.classList.add('hidden');
-    
-    if (searchContainer) searchContainer.classList.remove('hidden');
-  }
-
-  // ---------------------------------------------
-  // VALIDATION DU FORMAT DE NOM DE FICHIER
-  // ---------------------------------------------
-  function validateFilenameFormat(filename) {
-    const nameWithoutExt = filename.replace(/\.pdf$/i, '');
-    const pattern = /^(\d+)\s+([A-Z])\s+([A-Z]{2,})\s+(.+)$/;
-    return pattern.test(nameWithoutExt);
-  }
-
-  function showFormatErrorOverlay() {
-    formatErrorOverlay.classList.remove('hidden');
-  }
-
-  function setupFormatErrorOverlay() {
-    const closeBtn = document.getElementById('formatErrorClose');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        formatErrorOverlay.classList.add('hidden');
-      });
-    }
-    
-    formatErrorOverlay.addEventListener('click', (e) => {
-      if (e.target === formatErrorOverlay) {
-        formatErrorOverlay.classList.add('hidden');
-      }
-    });
-  }
-
-  // ---------------------------------------------
-  // EXTRACTION MATRICULE
-  // ---------------------------------------------
-  function extractMatriculeFromFilename(filename) {
-    const normalized = filename.replace(/_/g, ' ');
-    const parts = normalized.split(' ');
-    return parts.length >= 1 ? parts[0] : null;
-  }
-
-  async function checkMatriculeExists(matricule) {
-    if (!supabase || !currentUser) return false;
-    
-    try {
-      const { data, error } = await supabase
-        .from('fichiers')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .filter('nom', 'ilike', `${matricule}%`);
-      
-      if (error) throw error;
-      return data && data.length > 0;
-      
-    } catch (error) {
-      console.error('Erreur vérification matricule:', error);
-      return false;
-    }
-  }
-
-  // ---------------------------------------------
-  // UPLOAD
-  // ---------------------------------------------
-  function openCategoryOverlay() {
-    if (categories.length === 0) {
-      showNotification('Créez d\'abord une catégorie', 'error');
-      return;
-    }
-    
-    renderCategoryOverlay();
-    categoryOverlay.classList.remove('hidden');
-  }
-
-  function renderCategoryOverlay() {
-    if (!categoryOverlayContent) return;
-    
-    const fileCountByCategory = {};
-    categories.forEach(cat => fileCountByCategory[cat.id] = 0);
-    
-    allFiles.forEach(file => {
-      if (file.categorie_id && fileCountByCategory.hasOwnProperty(file.categorie_id)) {
-        fileCountByCategory[file.categorie_id]++;
-      }
+      renderFiles();
     });
     
-    categoryOverlayContent.innerHTML = categories.map(cat => `
-      <div class="category-overlay-item" data-category-id="${cat.id}">
-        <span class="category-overlay-name">${cat.nom}</span>
-        <span class="category-overlay-count">${fileCountByCategory[cat.id] || 0}</span>
+    document.querySelectorAll('.category-checkbox[data-category-id]').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const id = e.target.dataset.categoryId;
+        if (e.target.checked) {
+          selectedCategories.add(id);
+          selectedCategories.delete('all');
+          const catAll = document.getElementById('catAll');
+          if (catAll) catAll.checked = false;
+        } else {
+          selectedCategories.delete(id);
+          if (selectedCategories.size === 0) {
+            selectedCategories.add('all');
+            const catAll = document.getElementById('catAll');
+            if (catAll) catAll.checked = true;
+          }
+        }
+        renderFiles();
+      });
+    });
+  }
+  
+  function updateFiltersUI() {
+    if (!filtersRow) return;
+    const filesByDate = {};
+    allFiles.forEach(f => {
+      const d = formatDateKey(f.date_upload);
+      if (!filesByDate[d]) filesByDate[d] = [];
+      filesByDate[d].push(f);
+    });
+    const sorted = Object.keys(filesByDate).sort((a, b) => {
+      return new Date(b.split('/').reverse().join('-')) - new Date(a.split('/').reverse().join('-'));
+    });
+    filtersRow.innerHTML = sorted.map(d => `
+      <div class="filter-pill ${selectedDates.has(d) ? 'active' : ''}" data-date="${d}">
+        <i class="fas fa-calendar"></i>
+        <span>${d}</span>
+        <span class="filter-count">(${filesByDate[d].length})</span>
       </div>
     `).join('');
     
-    document.querySelectorAll('.category-overlay-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const categoryId = item.dataset.categoryId;
-        closeCategoryOverlay();
-        startUpload(categoryId);
+    document.querySelectorAll('.filter-pill').forEach(p => {
+      p.addEventListener('click', () => {
+        const date = p.dataset.date;
+        if (selectedDates.has(date)) selectedDates.delete(date);
+        else selectedDates.add(date);
+        updateFiltersUI();
+        renderFiles();
       });
     });
   }
-
+  
+  function getFilteredFiles() {
+    let filtered = [...allFiles];
+    
+    // Filtre catégories
+    if (!selectedCategories.has('all') && selectedCategories.size > 0) {
+      filtered = filtered.filter(f => f.categorie_id && selectedCategories.has(f.categorie_id));
+    }
+    
+    // Filtre dates
+    if (selectedDates.size > 0) {
+      filtered = filtered.filter(f => selectedDates.has(formatDateKey(f.date_upload)));
+    }
+    
+    // Recherche avancée
+    const term = searchInput?.value.toLowerCase().trim();
+    if (term) {
+      filtered = filtered.filter(f => {
+        const { nom, prenom, matricule } = extraireMetadonnees(f.nom);
+        const categorie = categories.find(c => c.id === f.categorie_id)?.nom || '';
+        const date = formatDateKey(f.date_upload);
+        
+        if (searchNom?.checked && (`${nom} ${prenom}`).toLowerCase().includes(term)) return true;
+        if (searchMatricule?.checked && matricule.toLowerCase().includes(term)) return true;
+        if (searchCategorie?.checked && categorie.toLowerCase().includes(term)) return true;
+        if (searchDate?.checked && date.includes(term)) return true;
+        return false;
+      });
+    }
+    
+    return filtered;
+  }
+  
+  function renderFiles() {
+    if (!filesContainer) return;
+    const filtered = getFilteredFiles();
+    
+    if (!categories.length) {
+      filesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Créez votre première catégorie</p></div>';
+      return;
+    }
+    if (!filtered.length) {
+      filesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>Aucun fichier trouvé</p></div>';
+      return;
+    }
+    
+    const byCat = {};
+    categories.forEach(c => byCat[c.id] = []);
+    filtered.forEach(f => {
+      if (f.categorie_id && byCat[f.categorie_id]) byCat[f.categorie_id].push(f);
+    });
+    
+    let html = '';
+    categories.forEach(cat => {
+      const catFiles = byCat[cat.id] || [];
+      if (!catFiles.length) return;
+      html += `<div class="category-group"><h4><i class="fas fa-folder"></i> ${escapeHtml(cat.nom)} (${catFiles.length})</h4><div class="files-grid">`;
+      catFiles.forEach(f => {
+        const { matricule, nom, prenom } = extraireMetadonnees(f.nom);
+        html += `
+          <div class="file-item ${selectionMode ? 'select-mode' : ''} ${selectedFiles.has(f.id) ? 'selected' : ''}" data-id="${f.id}" data-file='${JSON.stringify(f).replace(/'/g, "&apos;")}'>
+            <div class="file-select"><input type="checkbox" class="file-checkbox" data-id="${f.id}" ${selectedFiles.has(f.id) ? 'checked' : ''}></div>
+            <div class="file-icon"><i class="fas fa-file-pdf"></i></div>
+            <div class="file-matricule">${escapeHtml(matricule || '')}</div>
+            <div class="file-nom">${escapeHtml(nom || '')} ${escapeHtml(prenom || '')}</div>
+            <div class="file-actions">
+              <button class="file-action-btn download" data-id="${f.id}" title="Télécharger"><i class="fas fa-download"></i></button>
+              <button class="file-action-btn delete" data-id="${f.id}" title="Supprimer"><i class="fas fa-trash"></i></button>
+              <button class="file-action-btn preview" data-id="${f.id}" title="Aperçu"><i class="fas fa-eye"></i></button>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div></div>`;
+    });
+    filesContainer.innerHTML = html;
+    attachFileEvents();
+  }
+  
+  function attachFileEvents() {
+    document.querySelectorAll('.file-item').forEach(item => {
+      const id = item.dataset.id;
+      item.addEventListener('click', e => {
+        if (e.target.closest('.file-action-btn')) return;
+        if (selectionMode) {
+          const cb = item.querySelector('.file-checkbox');
+          if (cb) cb.click();
+        } else {
+          const file = allFiles.find(f => f.id === id);
+          if (file) openFilePreview(file);
+        }
+      });
+      const cb = item.querySelector('.file-checkbox');
+      if (cb) {
+        cb.addEventListener('click', e => {
+          e.stopPropagation();
+          toggleFileSelection(id, cb.checked);
+        });
+      }
+    });
+    
+    document.querySelectorAll('.file-action-btn.download').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const file = allFiles.find(f => f.id === id);
+        if (file) downloadFile(file);
+      });
+    });
+    
+    document.querySelectorAll('.file-action-btn.delete').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const file = allFiles.find(f => f.id === id);
+        if (file) confirmDeleteFile(file);
+      });
+    });
+    
+    document.querySelectorAll('.file-action-btn.preview').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const file = allFiles.find(f => f.id === id);
+        if (file) openFilePreview(file);
+      });
+    });
+  }
+  
+  // =============================================
+  // 6. SÉLECTION MULTIPLE
+  // =============================================
+  
+  function toggleFileSelection(id, checked) {
+    if (checked) selectedFiles.add(id);
+    else selectedFiles.delete(id);
+    updateSelectionUI();
+  }
+  
+  function updateSelectionUI() {
+    const count = selectedFiles.size;
+    if (count === 0) {
+      selectCountSpan?.classList.add('hidden');
+      downloadSelectedBtn.disabled = true;
+      deleteSelectedBtn.disabled = true;
+      cancelSelectBtn?.classList.add('hidden');
+      if (selectModeBtn) selectModeBtn.innerHTML = '<i class="fas fa-check-square"></i> Sélection multiple';
+    } else {
+      selectCountSpan.textContent = `${count} sélectionné${count > 1 ? 's' : ''}`;
+      selectCountSpan.classList.remove('hidden');
+      downloadSelectedBtn.disabled = false;
+      deleteSelectedBtn.disabled = false;
+      cancelSelectBtn.classList.remove('hidden');
+      if (selectModeBtn) selectModeBtn.innerHTML = `<i class="fas fa-check-square"></i> ${count} sélectionné${count > 1 ? 's' : ''}`;
+    }
+    
+    document.querySelectorAll('.file-item').forEach(item => {
+      const id = item.dataset.id;
+      if (selectedFiles.has(id)) item.classList.add('selected');
+      else item.classList.remove('selected');
+      const cb = item.querySelector('.file-checkbox');
+      if (cb) cb.checked = selectedFiles.has(id);
+    });
+  }
+  
+  function toggleSelectionMode() {
+    selectionMode = !selectionMode;
+    if (!selectionMode) {
+      selectedFiles.clear();
+      updateSelectionUI();
+    }
+    document.querySelectorAll('.file-item').forEach(item => {
+      if (selectionMode) item.classList.add('select-mode');
+      else item.classList.remove('select-mode');
+    });
+    updateSelectionUI();
+  }
+  
+  // =============================================
+  // 7. TÉLÉCHARGEMENT ET SUPPRESSION
+  // =============================================
+  
+  async function downloadFile(file) {
+    try {
+      const { data: urlData } = supabase.storage.from(file.bucket || 'fichiers').getPublicUrl(file.chemin_storage);
+      const a = document.createElement('a');
+      a.href = urlData.publicUrl;
+      a.download = file.nom;
+      a.click();
+      showNotification('Téléchargement démarré', 'success');
+    } catch (e) {
+      showNotification('Erreur téléchargement', 'error');
+    }
+  }
+  
+  async function downloadSelected() {
+    const filesToDownload = allFiles.filter(f => selectedFiles.has(f.id));
+    for (const file of filesToDownload) await downloadFile(file);
+    toggleSelectionMode();
+    showNotification(`${filesToDownload.length} fichier(s) téléchargé(s)`, 'success');
+  }
+  
+  async function confirmDeleteFile(file) {
+    if (!confirm(`Supprimer définitivement "${file.nom}" ?`)) return;
+    showDeleteLoader(file.nom);
+    try {
+      await supabase.from('dossier_fichiers').delete().eq('fichier_id', file.id);
+      await supabase.storage.from('fichiers').remove([file.chemin_storage]);
+      await supabase.from('fichiers').delete().eq('id', file.id);
+      await loadFiles();
+      updateUI();
+      showNotification('Fichier supprimé', 'success');
+    } catch (e) {
+      showNotification('Erreur suppression', 'error');
+    } finally {
+      hideDeleteLoader();
+    }
+  }
+  
+  async function deleteSelected() {
+    const filesToDelete = allFiles.filter(f => selectedFiles.has(f.id));
+    if (!filesToDelete.length) return;
+    if (!confirm(`Supprimer définitivement ${filesToDelete.length} fichier(s) ?`)) return;
+    showDeleteLoader(`${filesToDelete.length} fichiers`);
+    for (const file of filesToDelete) {
+      await supabase.from('dossier_fichiers').delete().eq('fichier_id', file.id);
+      await supabase.storage.from('fichiers').remove([file.chemin_storage]);
+      await supabase.from('fichiers').delete().eq('id', file.id);
+    }
+    await loadFiles();
+    updateUI();
+    toggleSelectionMode();
+    showNotification(`${filesToDelete.length} fichier(s) supprimé(s)`, 'success');
+    hideDeleteLoader();
+  }
+  
+  // =============================================
+  // 8. OVERLAY CATÉGORIES
+  // =============================================
+  
+  function openCategoryOverlay() {
+    categoryOverlay.classList.remove('hidden');
+    renderCategoriesCheckboxList();
+  }
+  
   function closeCategoryOverlay() {
     categoryOverlay.classList.add('hidden');
   }
-
-  function startUpload(categoryId) {
+  
+  function renderCategoriesCheckboxList() {
+    if (!categoriesCheckboxList) return;
+    let html = '';
+    categories.forEach(c => {
+      const count = allFiles.filter(f => f.categorie_id === c.id).length;
+      html += `<label class="category-checkbox-item"><input type="checkbox" value="${c.id}"><span>${escapeHtml(c.nom)}</span><span class="cat-count">(${count})</span></label>`;
+    });
+    categoriesCheckboxList.innerHTML = html;
+    const checkboxes = categoriesCheckboxList.querySelectorAll('input');
+    checkboxes.forEach(cb => cb.addEventListener('change', () => {
+      const hasSelection = Array.from(checkboxes).some(c => c.checked);
+      deleteCategoriesBtn.disabled = !hasSelection;
+    }));
+    deleteCategoriesBtn.disabled = true;
+  }
+  
+  async function createCategory() {
+    const nom = newCategoryName?.value.trim();
+    if (!nom) { showNotification('Entrez un nom', 'error'); return; }
+    if (categories.some(c => c.nom.toLowerCase() === nom.toLowerCase())) {
+      showNotification('Catégorie existe déjà', 'error');
+      return;
+    }
+    try {
+      await supabase.from('dossiers').insert({ user_id: currentUser.id, nom, parent_id: null });
+      await loadCategories();
+      updateCategoriesUI();
+      statsCategories.textContent = categories.length;
+      newCategoryName.value = '';
+      showNotification('Catégorie créée', 'success');
+      renderCategoriesCheckboxList();
+    } catch (e) { showNotification('Erreur création', 'error'); }
+  }
+  
+  async function deleteSelectedCategories() {
+    const selected = Array.from(categoriesCheckboxList.querySelectorAll('input:checked')).map(cb => cb.value);
+    if (!selected.length) return;
+    const filesToDelete = allFiles.filter(f => selected.includes(f.categorie_id));
+    if (!confirm(`Supprimer ${selected.length} catégorie(s) et ${filesToDelete.length} fichier(s) ?`)) return;
+    showDeleteLoader('catégories');
+    for (const id of selected) {
+      const catFiles = allFiles.filter(f => f.categorie_id === id);
+      for (const f of catFiles) {
+        await supabase.from('dossier_fichiers').delete().eq('fichier_id', f.id);
+        await supabase.storage.from('fichiers').remove([f.chemin_storage]);
+        await supabase.from('fichiers').delete().eq('id', f.id);
+      }
+      await supabase.from('dossiers').delete().eq('id', id);
+    }
+    await loadCategories();
+    await loadFiles();
+    updateUI();
+    renderCategoriesCheckboxList();
+    showNotification('Suppression terminée', 'success');
+    hideDeleteLoader();
+  }
+  
+  // =============================================
+  // 9. OVERLAY UPLOAD (avec table attente)
+  // =============================================
+  
+  function openUploadOverlay() {
+    renderCategoryRadioList();
+    renderPendingFilesList();
+    startUploadTimer();
+    uploadOverlay.classList.remove('hidden');
+  }
+  
+  function closeUploadOverlay() {
+    uploadOverlay.classList.add('hidden');
+    stopUploadTimer();
+  }
+  
+  function renderCategoryRadioList() {
+    if (!uploadCategoryList) return;
+    let html = '';
+    categories.forEach(c => {
+      html += `<label class="category-radio-item"><input type="radio" name="uploadCategory" value="${c.id}"><span>${escapeHtml(c.nom)}</span></label>`;
+    });
+    uploadCategoryList.innerHTML = html;
+    uploadCategoryList.querySelectorAll('input').forEach(radio => {
+      radio.addEventListener('change', () => {
+        selectedCategoryId = radio.value;
+        updateConfirmButton();
+      });
+    });
+  }
+  
+  function renderPendingFilesList() {
+    if (!pendingFilesList) return;
+    if (!pendingFiles.length) {
+      pendingFilesList.innerHTML = '<p class="empty-pending">Aucun fichier en attente</p>';
+      if (fileDetailsContent) fileDetailsContent.innerHTML = '<p class="no-selection">Sélectionnez un fichier pour le modifier</p>';
+      return;
+    }
+    let html = '';
+    pendingFiles.forEach((file, idx) => {
+      const isValid = validerNomFichier(file.name);
+      const isDuplicate = file.isDuplicate;
+      let statusClass = 'valid';
+      let statusText = '✅ Valide';
+      if (!isValid) { statusClass = 'error'; statusText = '⚠️ Format invalide'; }
+      if (isDuplicate) { statusClass = 'duplicate'; statusText = '⚠️ Doublon'; }
+      html += `
+        <div class="pending-file-item" data-index="${idx}">
+          <span class="pending-file-name">${escapeHtml(file.name)}</span>
+          <span class="pending-file-status ${statusClass}">${statusText}</span>
+        </div>
+      `;
+    });
+    pendingFilesList.innerHTML = html;
+    
+    pendingFilesList.querySelectorAll('.pending-file-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.dataset.index);
+        selectPendingFile(idx);
+      });
+    });
+  }
+  
+  function selectPendingFile(index) {
+    const file = pendingFiles[index];
+    if (!file) return;
+    
+    const { matricule, nom, prenom, designation } = extraireMetadonnees(file.name);
+    const isValid = validerNomFichier(file.name);
+    const finalName = `${matricule} ${nom} ${prenom} ${designation}.pdf`.replace(/\s+/g, ' ').trim();
+    
+    let editorHtml = `
+      <div class="editor-fields">
+        <div class="editor-field">
+          <label>Matricule (8 chiffres + lettre)</label>
+          <input type="text" id="editMatricule" value="${escapeHtml(matricule)}" placeholder="19167122 F">
+        </div>
+        <div class="editor-field">
+          <label>Nom</label>
+          <input type="text" id="editNom" value="${escapeHtml(nom)}" placeholder="IPOTE">
+        </div>
+        <div class="editor-field">
+          <label>Prénom</label>
+          <input type="text" id="editPrenom" value="${escapeHtml(prenom)}" placeholder="IVAN GAËL">
+        </div>
+        <div class="editor-field">
+          <label>Désignation</label>
+          <input type="text" id="editDesignation" value="${escapeHtml(designation)}" placeholder="fiche">
+        </div>
+      </div>
+      <div class="nom-final ${isValid ? 'valid' : 'invalid'}">
+        <strong>✅ Nom final :</strong> ${escapeHtml(finalName)}
+      </div>
+    `;
+    
+    if (file.isDuplicate) {
+      editorHtml += `
+        <div class="duplicate-actions">
+          <p class="warning-text">⚠️ Ce fichier existe déjà dans la base</p>
+          <div class="editor-actions">
+            <button class="btn-apply" id="replaceDuplicateBtn">🔄 Remplacer l'ancien</button>
+            <button class="btn-ignore" id="ignoreDuplicateBtn">❌ Ignorer ce fichier</button>
+          </div>
+        </div>
+      `;
+    } else if (!isValid) {
+      editorHtml += `
+        <div class="editor-actions">
+          <button class="btn-apply" id="applyCorrectionBtn">🔄 Appliquer la correction</button>
+          <button class="btn-ignore" id="ignoreCorrectionBtn">❌ Ignorer</button>
+        </div>
+      `;
+    }
+    
+    if (fileDetailsContent) fileDetailsContent.innerHTML = editorHtml;
+    
+    if (!isValid) {
+      document.getElementById('applyCorrectionBtn')?.addEventListener('click', () => applyCorrection(index));
+      document.getElementById('ignoreCorrectionBtn')?.addEventListener('click', () => ignoreFile(index));
+    }
+    if (file.isDuplicate) {
+      document.getElementById('replaceDuplicateBtn')?.addEventListener('click', () => replaceDuplicate(index));
+      document.getElementById('ignoreDuplicateBtn')?.addEventListener('click', () => ignoreFile(index));
+    }
+    
+    const editMatricule = document.getElementById('editMatricule');
+    const editNom = document.getElementById('editNom');
+    const editPrenom = document.getElementById('editPrenom');
+    const editDesignation = document.getElementById('editDesignation');
+    const updatePreview = () => {
+      const newMat = editMatricule?.value || '';
+      const newNom = editNom?.value || '';
+      const newPrenom = editPrenom?.value || '';
+      const newDesignation = editDesignation?.value || '';
+      const newFinal = `${newMat} ${newNom} ${newPrenom} ${newDesignation}.pdf`.replace(/\s+/g, ' ').trim();
+      const previewDiv = document.querySelector('.nom-final');
+      if (previewDiv) {
+        previewDiv.innerHTML = `<strong>✅ Nom final :</strong> ${escapeHtml(newFinal)}`;
+        const newIsValid = validerNomFichier(newFinal);
+        previewDiv.className = `nom-final ${newIsValid ? 'valid' : 'invalid'}`;
+      }
+    };
+    editMatricule?.addEventListener('input', updatePreview);
+    editNom?.addEventListener('input', updatePreview);
+    editPrenom?.addEventListener('input', updatePreview);
+    editDesignation?.addEventListener('input', updatePreview);
+  }
+  
+  function applyCorrection(index) {
+    const newMat = document.getElementById('editMatricule')?.value || '';
+    const newNom = document.getElementById('editNom')?.value || '';
+    const newPrenom = document.getElementById('editPrenom')?.value || '';
+    const newDesignation = document.getElementById('editDesignation')?.value || '';
+    const newName = `${newMat} ${newNom} ${newPrenom} ${newDesignation}.pdf`.replace(/\s+/g, ' ').trim();
+    
+    if (!validerNomFichier(newName)) {
+      showNotification('Nom toujours invalide', 'error');
+      return;
+    }
+    
+    const file = pendingFiles[index];
+    const newFile = new File([file], newName, { type: 'application/pdf' });
+    pendingFiles[index] = newFile;
+    pendingFiles[index].isDuplicate = false;
+    renderPendingFilesList();
+    showNotification('Correction appliquée', 'success');
+  }
+  
+  function ignoreFile(index) {
+    pendingFiles.splice(index, 1);
+    renderPendingFilesList();
+    if (fileDetailsContent) fileDetailsContent.innerHTML = '<p class="no-selection">Sélectionnez un fichier pour le modifier</p>';
+    showNotification('Fichier ignoré', 'info');
+  }
+  
+  async function replaceDuplicate(index) {
+    const file = pendingFiles[index];
+    const { matricule } = extraireMetadonnees(file.name);
+    const { data: existing } = await supabase
+      .from('fichiers')
+      .select('id, chemin_storage')
+      .eq('user_id', currentUser.id)
+      .filter('nom', 'ilike', `${matricule}%`);
+    
+    for (const old of existing || []) {
+      await supabase.from('dossier_fichiers').delete().eq('fichier_id', old.id);
+      await supabase.storage.from('fichiers').remove([old.chemin_storage]);
+      await supabase.from('fichiers').delete().eq('id', old.id);
+    }
+    
+    pendingFiles[index].isDuplicate = false;
+    showNotification('Ancien fichier supprimé, prêt à uploader', 'success');
+    renderPendingFilesList();
+  }
+  
+  function validerNomFichier(nom) {
+    const base = nom.replace(/\.pdf$/i, '');
+    const parties = base.split(' ');
+    if (parties.length < 4) return false;
+    const matPart = parties[0];
+    const lettrePart = parties[1];
+    const nomPart = parties[2];
+    if (!/^\d{8,9}$/.test(matPart)) return false;
+    if (!/^[A-Z]$/.test(lettrePart)) return false;
+    if (nomPart.length < 2) return false;
+    return true;
+  }
+  
+  async function addFilesToUpload() {
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    input.accept = '.pdf,application/pdf';
+    input.accept = '.pdf';
     input.onchange = async (e) => {
       const files = Array.from(e.target.files);
       if (!files.length) return;
       
-      const pdfFiles = files.filter(f => 
-        f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
-      );
-      
-      if (pdfFiles.length === 0) {
-        showNotification('Veuillez sélectionner des fichiers PDF', 'error');
-        return;
+      for (const file of files) {
+        const { matricule } = extraireMetadonnees(file.name);
+        const { data: existing } = await supabase
+          .from('fichiers')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .filter('nom', 'ilike', `${matricule}%`);
+        
+        pendingFiles.push(file);
+        if (existing?.length) pendingFiles[pendingFiles.length - 1].isDuplicate = true;
+        else pendingFiles[pendingFiles.length - 1].isDuplicate = false;
       }
       
-      const invalidFiles = pdfFiles.filter(f => !validateFilenameFormat(f.name));
-      
-      if (invalidFiles.length > 0) {
-        showFormatErrorOverlay();
-        console.warn('Fichiers au format invalide:', invalidFiles.map(f => f.name));
-        return;
-      }
-      
-      uploadState = {
-        active: true,
-        totalFiles: pdfFiles.length,
-        completedFiles: 0,
-        currentCategoryId: categoryId
-      };
-      
-      if (searchContainer) searchContainer.classList.add('hidden');
-      if (syncLoader) {
-        syncLoader.classList.remove('hidden');
-        updateSyncLoader();
-      }
-      
-      for (const file of pdfFiles) {
-        await processUpload(file, categoryId);
-        uploadState.completedFiles++;
-        updateSyncLoader();
-      }
-      
-      await loadFiles();
-      
-      if (syncLoader) syncLoader.classList.add('hidden');
-      if (searchContainer) searchContainer.classList.remove('hidden');
-      
-      updateUI();
-      
-      if (uploadState.completedFiles < uploadState.totalFiles) {
-        showNotification('Certains fichiers n\'ont pas été uploadés', 'error');
-      }
+      renderPendingFilesList();
+      updateConfirmButton();
+      startUploadTimer();
     };
     input.click();
   }
-
-  async function processUpload(file, categoryId) {
-    try {
-      if (!supabase || !currentUser) return;
-      
-      const matricule = extractMatriculeFromFilename(file.name);
-      if (!matricule) return;
-      
-      const existe = await checkMatriculeExists(matricule);
-      
-      if (existe) {
-        const action = confirm(
-          `Le matricule ${matricule} existe déjà.\n\nOK = Remplacer l'ancien fichier\nAnnuler = Ignorer ce fichier`
-        );
-        
-        if (!action) return;
-        
-        const { data: oldFiles } = await supabase
+  
+  function updateConfirmButton() {
+    confirmUploadBtn.disabled = !selectedCategoryId || pendingFiles.length === 0;
+  }
+  
+  function startUploadTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    uploadExpirationTime = Date.now() + 10 * 60 * 1000;
+    updateTimerDisplay();
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+  }
+  
+  function updateTimerDisplay() {
+    if (!uploadTimerDisplay) return;
+    const remaining = Math.max(0, uploadExpirationTime - Date.now());
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    uploadTimerDisplay.querySelector('span').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    if (remaining <= 0) {
+      stopUploadTimer();
+      cleanupExpiredFiles();
+      closeUploadOverlay();
+      showNotification('Temps expiré, fichiers supprimés', 'error');
+    }
+  }
+  
+  function stopUploadTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  
+  async function cleanupExpiredFiles() {
+    for (const file of pendingFiles) {
+      if (file._uploaded) continue;
+    }
+    pendingFiles = [];
+    renderPendingFilesList();
+  }
+  
+  async function uploadFiles() {
+    if (!selectedCategoryId || !pendingFiles.length) return;
+    
+    showSyncLoader(pendingFiles.length);
+    let success = 0;
+    let errors = 0;
+    
+    for (const file of pendingFiles) {
+      if (file.isDuplicate) continue;
+      try {
+        const { matricule } = extraireMetadonnees(file.name);
+        const { data: existing } = await supabase
           .from('fichiers')
           .select('id, chemin_storage')
           .eq('user_id', currentUser.id)
           .filter('nom', 'ilike', `${matricule}%`);
         
-        for (const oldFile of oldFiles || []) {
-          await supabase
-            .from('dossier_fichiers')
-            .delete()
-            .eq('fichier_id', oldFile.id);
-          
-          await supabase.storage
-            .from('fichiers')
-            .remove([oldFile.chemin_storage]);
-          
-          await supabase
-            .from('fichiers')
-            .delete()
-            .eq('id', oldFile.id);
+        for (const old of existing || []) {
+          await supabase.from('dossier_fichiers').delete().eq('fichier_id', old.id);
+          await supabase.storage.from('fichiers').remove([old.chemin_storage]);
+          await supabase.from('fichiers').delete().eq('id', old.id);
         }
-      }
-      
-      const safeFileName = file.name
-        .replace(/[^a-zA-Z0-9._-]/g, '_')
-        .replace(/\s+/g, '_');
-      
-      const path = `${currentUser.id}/${Date.now()}_${safeFileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('fichiers')
-        .upload(path, file);
-      
-      if (uploadError) throw uploadError;
-      
-      const { data: newFile, error: insertError } = await supabase
-        .from('fichiers')
-        .insert({
-          user_id: currentUser.id,
-          nom: file.name,
-          type_mime: file.type || 'application/pdf',
-          taille: file.size,
-          chemin_storage: path,
-          bucket: 'fichiers'
-        })
-        .select()
-        .single();
-      
-      if (insertError) throw insertError;
-      
-      await supabase
-        .from('dossier_fichiers')
-        .insert({
-          dossier_id: categoryId,
+        
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\s+/g, '_');
+        const path = `${currentUser.id}/${Date.now()}_${safeName}`;
+        await supabase.storage.from('fichiers').upload(path, file);
+        
+        const { data: newFile } = await supabase
+          .from('fichiers')
+          .insert({
+            user_id: currentUser.id,
+            nom: file.name,
+            type_mime: 'application/pdf',
+            taille: file.size,
+            chemin_storage: path,
+            bucket: 'fichiers'
+          })
+          .select()
+          .single();
+        
+        await supabase.from('dossier_fichiers').insert({
+          dossier_id: selectedCategoryId,
           fichier_id: newFile.id
         });
-      
-    } catch (error) {
-      console.error('Erreur upload:', file.name, error);
-      showNotification(`Erreur: ${file.name}`, 'error');
-    }
-  }
-
-  function updateSyncLoader() {
-    if (!syncLoader) return;
-    const countEl = syncLoader.querySelector('.sync-count');
-    if (countEl) {
-      countEl.textContent = `${uploadState.completedFiles}/${uploadState.totalFiles}`;
-    }
-  }
-
-  // ---------------------------------------------
-  // FILTRAGE
-  // ---------------------------------------------
-  function getFilteredFiles() {
-    let filtered = [...allFiles];
-    
-    if (selectedCategories.size > 0) {
-      filtered = filtered.filter(file => 
-        file.categorie_id && selectedCategories.has(file.categorie_id)
-      );
-    }
-    
-    if (selectedDates.size > 0) {
-      filtered = filtered.filter(file => {
-        const dateStr = formatDateKey(new Date(file.date_upload));
-        return selectedDates.has(dateStr);
-      });
-    }
-    
-    const searchTerm = searchInput?.value.toLowerCase().trim();
-    if (searchTerm) {
-      filtered = filtered.filter(file => 
-        file.nom.toLowerCase().includes(searchTerm)
-      );
-    }
-    
-    return filtered;
-  }
-
-  function formatDateKey(date) {
-    const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  }
-
-  function formatDateDisplay(date) {
-    const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  }
-
-  // ---------------------------------------------
-  // RENDU UI
-  // ---------------------------------------------
-  function updateUI() {
-    updateCategoriesUI();
-    updateStatsUI();
-    renderFiles();
-  }
-
-  function updateCategoriesUI() {
-    if (!categoriesRow) return;
-    
-    const fileCountByCategory = {};
-    categories.forEach(cat => fileCountByCategory[cat.id] = 0);
-    
-    allFiles.forEach(file => {
-      if (file.categorie_id && fileCountByCategory.hasOwnProperty(file.categorie_id)) {
-        fileCountByCategory[file.categorie_id]++;
+        success++;
+        file._uploaded = true;
+      } catch (e) {
+        console.error('Upload error:', e);
+        errors++;
       }
-    });
-    
-    categoriesRow.innerHTML = categories.map(cat => `
-      <div class="category-pill ${selectedCategories.has(cat.id) ? 'active' : ''}" 
-           data-category-id="${cat.id}"
-           data-category-name="${cat.nom}">
-        <i class="fas fa-folder"></i>
-        <span>${cat.nom}</span>
-        <span class="category-count">(${fileCountByCategory[cat.id] || 0})</span>
-      </div>
-    `).join('');
-    
-    document.querySelectorAll('.category-pill').forEach(pill => {
-      pill.addEventListener('click', (e) => {
-        if (categoryDeleteMode) {
-          exitCategoryDeleteMode();
-          return;
-        }
-        const catId = pill.dataset.categoryId;
-        toggleCategoryFilter(catId);
-      });
-      
-      // Appui long pour suppression catégorie
-      let pressTimer;
-      
-      pill.addEventListener('mousedown', () => {
-        if (selectionMode || categoryDeleteMode) return;
-        pressTimer = setTimeout(() => {
-          const catId = pill.dataset.categoryId;
-          enterCategoryDeleteMode(catId);
-          if (navigator.vibrate) navigator.vibrate(50);
-        }, CATEGORY_LONG_PRESS_DELAY);
-      });
-      
-      pill.addEventListener('mouseup', () => clearTimeout(pressTimer));
-      pill.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-      
-      pill.addEventListener('touchstart', (e) => {
-        if (selectionMode || categoryDeleteMode) return;
-        pressTimer = setTimeout(() => {
-          const catId = pill.dataset.categoryId;
-          enterCategoryDeleteMode(catId);
-          if (navigator.vibrate) navigator.vibrate(50);
-        }, CATEGORY_LONG_PRESS_DELAY);
-      }, { passive: true });
-      
-      pill.addEventListener('touchend', () => clearTimeout(pressTimer));
-      pill.addEventListener('touchcancel', () => clearTimeout(pressTimer));
-    });
-  }
-
-  function toggleCategoryFilter(catId) {
-    if (selectedCategories.has(catId)) {
-      selectedCategories.delete(catId);
-    } else {
-      selectedCategories.add(catId);
-    }
-    updateCategoriesUI();
-    renderFiles();
-  }
-
-  function updateStatsUI() {
-    if (!statsRow) return;
-    
-    const filesByDate = {};
-    allFiles.forEach(file => {
-      const dateKey = formatDateKey(new Date(file.date_upload));
-      if (!filesByDate[dateKey]) filesByDate[dateKey] = [];
-      filesByDate[dateKey].push(file);
-    });
-    
-    const sortedDates = Object.keys(filesByDate).sort((a, b) => {
-      const [da, ma, ya] = a.split('/').map(Number);
-      const [db, mb, yb] = b.split('/').map(Number);
-      return new Date(yb, mb-1, db) - new Date(ya, ma-1, da);
-    });
-    
-    statsRow.innerHTML = sortedDates.map(date => `
-      <div class="stat-item ${selectedDates.has(date) ? 'active' : ''}" data-date="${date}">
-        <i class="fas fa-calendar"></i>
-        <span class="stat-count">${date} (${filesByDate[date].length})</span>
-      </div>
-    `).join('');
-    
-    document.querySelectorAll('.stat-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const date = item.dataset.date;
-        toggleDateFilter(date);
-      });
-    });
-  }
-
-  function toggleDateFilter(date) {
-    if (selectedDates.has(date)) {
-      selectedDates.delete(date);
-    } else {
-      selectedDates.add(date);
-    }
-    updateStatsUI();
-    renderFiles();
-  }
-
-  function renderFiles() {
-    if (!mainContent) return;
-    
-    const filtered = getFilteredFiles();
-    
-    if (categories.length === 0) {
-      mainContent.innerHTML = `
-        <div class="empty-category-message">
-          <i class="fas fa-folder-open"></i>
-          <p>Créez votre première catégorie</p>
-        </div>
-      `;
-      return;
+      updateSyncLoader(success + errors, pendingFiles.length);
     }
     
-    if (filtered.length === 0) {
-      mainContent.innerHTML = `
-        <div class="empty-state">
-          Aucun fichier trouvé
-        </div>
-      `;
-      return;
-    }
-    
-    const filesByDate = {};
-    filtered.forEach(file => {
-      const dateKey = formatDateKey(new Date(file.date_upload));
-      if (!filesByDate[dateKey]) filesByDate[dateKey] = [];
-      filesByDate[dateKey].push(file);
-    });
-    
-    const sortedDates = Object.keys(filesByDate).sort((a, b) => {
-      const [da, ma, ya] = a.split('/').map(Number);
-      const [db, mb, yb] = b.split('/').map(Number);
-      return new Date(yb, mb-1, db) - new Date(ya, ma-1, da);
-    });
-    
-    let html = '<div class="files-grid">';
-    
-    sortedDates.forEach(date => {
-      html += `<div class="date-header">${date}</div>`;
-      
-      filesByDate[date].forEach(file => {
-        html += `
-          <div class="file-item" data-id="${file.id}" 
-               data-file='${JSON.stringify(file).replace(/'/g, "&apos;")}'>
-            <div class="file-name-row" title="${file.nom}">
-              ${truncateName(file.nom)}
-            </div>
-            <div class="file-image-row">
-              <div class="file-thumbnail-container">
-                <i class="fas fa-file-pdf"></i>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-    });
-    
-    html += '</div>';
-    mainContent.innerHTML = html;
-    
-    setupFileClickListeners();
-    setupLongPressListeners();
-  }
-
-  // ---------------------------------------------
-  // SÉLECTION MULTIPLE FICHIERS
-  // ---------------------------------------------
-  function enterSelectionMode(fileId) {
-    if (selectionMode || categoryDeleteMode) return;
-    
-    selectionMode = true;
-    selectedFiles.clear();
-    selectedFiles.add(fileId);
-    
-    if (searchContainer) searchContainer.classList.add('hidden');
-    if (multiSelectActions) {
-      multiSelectActions.classList.remove('hidden');
-      updateSelectCount();
-    }
-    
-    updateSelectedFilesUI();
-  }
-
-  function exitSelectionMode() {
-    selectionMode = false;
-    selectedFiles.clear();
-    
-    if (searchContainer) searchContainer.classList.remove('hidden');
-    if (multiSelectActions) multiSelectActions.classList.add('hidden');
-    
-    updateSelectedFilesUI();
-  }
-
-  function toggleSelectFile(fileId) {
-    if (!selectionMode) return;
-    
-    if (selectedFiles.has(fileId)) {
-      selectedFiles.delete(fileId);
-    } else {
-      selectedFiles.add(fileId);
-    }
-    
-    updateSelectCount();
-    updateSelectedFilesUI();
-    
-    if (selectedFiles.size === 0) exitSelectionMode();
-  }
-
-  function updateSelectCount() {
-    if (selectCount) {
-      const count = selectedFiles.size;
-      selectCount.textContent = count === 1 ? '1 sélectionné' : `${count} sélectionnés`;
-    }
-  }
-
-  function updateSelectedFilesUI() {
-    document.querySelectorAll('.file-item').forEach(item => {
-      const fileId = item.dataset.id;
-      if (selectionMode && selectedFiles.has(fileId)) {
-        item.classList.add('selected');
-      } else {
-        item.classList.remove('selected');
-      }
-    });
-  }
-
-  async function downloadSelected() {
-    if (selectedFiles.size === 0) return;
-    
-    for (const fileId of selectedFiles) {
-      const file = allFiles.find(f => f.id === fileId);
-      if (file) await forceDownload(file);
-    }
-    
-    exitSelectionMode();
-  }
-
-  async function deleteSelected() {
-    if (selectedFiles.size === 0) return;
-    
-    const confirmMsg = selectedFiles.size === 1 
-      ? 'Supprimer définitivement ce fichier ?' 
-      : `Supprimer définitivement ces ${selectedFiles.size} fichiers ?`;
-    
-    if (!confirm(confirmMsg)) return;
-    
-    showDeleteLoader(`${selectedFiles.size} fichiers`);
-    
-    for (const fileId of selectedFiles) {
-      const file = allFiles.find(f => f.id === fileId);
-      if (file) {
-        try {
-          await supabase
-            .from('dossier_fichiers')
-            .delete()
-            .eq('fichier_id', file.id);
-          
-          await supabase.storage
-            .from('fichiers')
-            .remove([file.chemin_storage]);
-          
-          await supabase
-            .from('fichiers')
-            .delete()
-            .eq('id', file.id);
-          
-        } catch (error) {
-          console.error('Erreur suppression:', file.nom, error);
-        }
-      }
-    }
-    
-    hideDeleteLoader();
-    
+    hideSyncLoader();
     await loadFiles();
     updateUI();
-    exitSelectionMode();
-  }
-
-  function setupLongPressListeners() {
-    document.querySelectorAll('.file-item').forEach(item => {
-      let pressTimer;
-      
-      item.addEventListener('mousedown', (e) => {
-        if (e.button === 2 || selectionMode || categoryDeleteMode) return;
-        pressTimer = setTimeout(() => {
-          const fileId = item.dataset.id;
-          enterSelectionMode(fileId);
-        }, LONG_PRESS_DELAY);
-      });
-      
-      item.addEventListener('mouseup', () => clearTimeout(pressTimer));
-      item.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-      
-      item.addEventListener('touchstart', (e) => {
-        if (selectionMode || categoryDeleteMode) return;
-        pressTimer = setTimeout(() => {
-          const fileId = item.dataset.id;
-          enterSelectionMode(fileId);
-          if (navigator.vibrate) navigator.vibrate(50);
-        }, LONG_PRESS_DELAY);
-      }, { passive: true });
-      
-      item.addEventListener('touchend', () => clearTimeout(pressTimer));
-      item.addEventListener('touchcancel', () => clearTimeout(pressTimer));
-    });
-  }
-
-  function setupFileClickListeners() {
-    document.querySelectorAll('.file-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        if (selectionMode) {
-          const fileId = item.dataset.id;
-          toggleSelectFile(fileId);
-        } else if (!categoryDeleteMode) {
-          const fileData = JSON.parse(item.dataset.file.replace(/&apos;/g, "'"));
-          openFilePreview(fileData);
-        }
-      });
-    });
-  }
-
-  // ---------------------------------------------
-  // TÉLÉCHARGEMENT FORCÉ
-  // ---------------------------------------------
-  async function forceDownload(file) {
-    try {
-      showNotification(`Préparation de ${file.nom}...`);
-      
-      const { data: urlData } = supabase.storage
-        .from(file.bucket || 'fichiers')
-        .getPublicUrl(file.chemin_storage);
-      
-      const response = await fetch(urlData.publicUrl);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = file.nom;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-      
-    } catch (error) {
-      console.error('Erreur téléchargement:', error);
-      showNotification(`Erreur téléchargement ${file.nom}`, 'error');
-    }
-  }
-
-  // ---------------------------------------------
-  // OVERLAY DE VISUALISATION
-  // ---------------------------------------------
-  function openFilePreview(file) {
-    if (selectionMode || categoryDeleteMode) return;
+    closeUploadOverlay();
     
+    pendingFiles = [];
+    selectedCategoryId = null;
+    showNotification(`${success} fichier(s) uploadé(s), ${errors} erreur(s)`, success > 0 ? 'success' : 'error');
+  }
+  
+  // =============================================
+  // 10. OVERLAY APERÇU PDF
+  // =============================================
+  
+  function openFilePreview(file) {
     currentPreviewFile = file;
-    const { publicUrl } = supabase.storage
-      .from(file.bucket || 'fichiers')
-      .getPublicUrl(file.chemin_storage).data;
+    const { publicUrl } = supabase.storage.from(file.bucket || 'fichiers').getPublicUrl(file.chemin_storage).data;
+    const { matricule, nom, prenom, designation } = extraireMetadonnees(file.nom);
     
     overlayFilename.textContent = file.nom;
+    previewMatricule.value = matricule || '';
+    previewNom.value = nom || '';
+    previewPrenom.value = prenom || '';
+    previewDesignation.value = designation || '';
+    previewTaille.textContent = formatFileSize(file.taille);
+    previewDate.textContent = formatDateDisplay(file.date_upload);
+    const cat = categories.find(c => c.id === file.categorie_id);
+    previewCategorie.textContent = cat?.nom || '-';
+    previewFiliere.textContent = '-';
     
-    overlayContent.innerHTML = `
-      <iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(publicUrl)}&embedded=true" 
-              class="overlay-pdf-preview"></iframe>
-    `;
-    
-    const date = new Date(file.date_upload);
-    overlayMetadata.innerHTML = `
-      <span><i class="fas fa-calendar"></i> ${formatDateDisplay(date)}</span>
-      <span class="separator">•</span>
-      <span><i class="fas fa-clock"></i> ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-      <span class="separator">•</span>
-      <span><i class="fas fa-weight-hanging"></i> ${formatFileSize(file.taille)}</span>
-    `;
+    const loadingDiv = pdfViewer?.querySelector('.pdf-loading');
+    if (loadingDiv) loadingDiv.classList.remove('hidden');
+    pdfIframe.classList.add('hidden');
+    pdfIframe.src = publicUrl;
+    pdfIframe.onload = () => {
+      if (loadingDiv) loadingDiv.classList.add('hidden');
+      pdfIframe.classList.remove('hidden');
+    };
     
     fileOverlay.classList.remove('hidden');
+    setMetadataReadOnly(true);
   }
-
-  function closePreview() {
+  
+  function setMetadataReadOnly(readonly) {
+    previewMatricule.readOnly = readonly;
+    previewNom.readOnly = readonly;
+    previewPrenom.readOnly = readonly;
+    previewDesignation.readOnly = readonly;
+    saveMetadataBtn.style.display = readonly ? 'none' : 'flex';
+  }
+  
+  function enableMetadataEdit() {
+    setMetadataReadOnly(false);
+  }
+  
+  async function saveMetadata() {
+    if (!currentPreviewFile) return;
+    const newMat = previewMatricule.value.trim();
+    const newNom = previewNom.value.trim();
+    const newPrenom = previewPrenom.value.trim();
+    const newDesignation = previewDesignation.value.trim();
+    const nouveauNom = `${newMat} ${newNom} ${newPrenom} ${newDesignation}.pdf`.replace(/\s+/g, ' ').trim();
+    
+    if (!validerNomFichier(nouveauNom)) {
+      showNotification('Nom invalide', 'error');
+      return;
+    }
+    
+    try {
+      const { data: urlData } = supabase.storage.from(currentPreviewFile.bucket || 'fichiers').getPublicUrl(currentPreviewFile.chemin_storage);
+      const response = await fetch(urlData.publicUrl);
+      const blob = await response.blob();
+      await supabase.storage.from('fichiers').remove([currentPreviewFile.chemin_storage]);
+      const safeName = nouveauNom.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\s+/g, '_');
+      const path = `${currentUser.id}/${Date.now()}_${safeName}`;
+      await supabase.storage.from('fichiers').upload(path, blob);
+      await supabase.from('fichiers').update({ nom: nouveauNom, chemin_storage: path }).eq('id', currentPreviewFile.id);
+      await loadFiles();
+      updateUI();
+      showNotification('Métadonnées sauvegardées', 'success');
+      closeFilePreview();
+    } catch (e) {
+      showNotification('Erreur sauvegarde', 'error');
+    }
+  }
+  
+  function closeFilePreview() {
     fileOverlay.classList.add('hidden');
-    overlayContent.innerHTML = '';
+    pdfIframe.src = '';
     currentPreviewFile = null;
   }
-
-  function setupOverlayListeners() {
-    if (overlayClose) overlayClose.addEventListener('click', closePreview);
-    if (overlayBackdrop) overlayBackdrop.addEventListener('click', closePreview);
-    
-    if (overlayDownload) {
-      overlayDownload.addEventListener('click', () => {
-        if (currentPreviewFile) forceDownload(currentPreviewFile);
-      });
+  
+  // =============================================
+  // 11. UTILITAIRES
+  // =============================================
+  
+  function extraireMetadonnees(nom) {
+    const base = nom.replace(/\.pdf$/i, '');
+    const parties = base.split(' ');
+    if (parties.length < 4) {
+      return { matricule: parties[0] || '', nom: parties[2] || '', prenom: parties.slice(3).join(' ') || '', designation: parties[parties.length - 1] || '' };
     }
-    
-    if (overlayDelete) {
-      overlayDelete.addEventListener('click', async () => {
-        if (!currentPreviewFile) return;
-        
-        if (confirm(`Supprimer définitivement "${currentPreviewFile.nom}" ?`)) {
-          showDeleteLoader(currentPreviewFile.nom);
-          closePreview();
-          
-          try {
-            await supabase
-              .from('dossier_fichiers')
-              .delete()
-              .eq('fichier_id', currentPreviewFile.id);
-            
-            await supabase.storage
-              .from('fichiers')
-              .remove([currentPreviewFile.chemin_storage]);
-            
-            await supabase
-              .from('fichiers')
-              .delete()
-              .eq('id', currentPreviewFile.id);
-            
-            await loadFiles();
-            updateUI();
-          } catch (error) {
-            console.error('Erreur suppression:', error);
-            showNotification('Erreur lors de la suppression', 'error');
-          } finally {
-            hideDeleteLoader();
-          }
-        }
-      });
-    }
-    
-    if (overlayFullscreen) {
-      overlayFullscreen.addEventListener('click', () => {
-        if (currentPreviewFile) {
-          const { publicUrl } = supabase.storage
-            .from(currentPreviewFile.bucket || 'fichiers')
-            .getPublicUrl(currentPreviewFile.chemin_storage).data;
-          window.open(publicUrl, '_blank');
-        }
-      });
-    }
-    
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !fileOverlay.classList.contains('hidden')) {
-        closePreview();
-      }
-    });
+    return {
+      matricule: parties[0] + (parties[1] ? ' ' + parties[1] : ''),
+      nom: parties[2] || '',
+      prenom: parties.slice(3, -1).join(' ') || '',
+      designation: parties[parties.length - 1] || ''
+    };
   }
-
-  function setupMultiSelectListeners() {
-    if (downloadSelectedBtn) {
-      downloadSelectedBtn.addEventListener('click', downloadSelected);
-    }
-    
-    if (deleteSelectedBtn) {
-      deleteSelectedBtn.addEventListener('click', deleteSelected);
-    }
-    
-    if (cancelSelectBtn) {
-      cancelSelectBtn.addEventListener('click', exitSelectionMode);
-    }
-    
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && selectionMode) {
-        exitSelectionMode();
-      }
-      if (e.key === 'Escape' && categoryDeleteMode) {
-        exitCategoryDeleteMode();
-      }
-    });
-  }
-
-  function setupCategoryDeleteListeners() {
-    // Déjà géré dans updateCategoriesUI
-  }
-
-  // ---------------------------------------------
-  // LOADERS ET NOTIFICATIONS
-  // ---------------------------------------------
-  function showDeleteLoader(filename) {
-    const loader = document.getElementById('deleteLoader');
-    const textEl = loader?.querySelector('.delete-loader-text');
-    if (textEl) textEl.textContent = `Suppression ${filename}...`;
-    if (loader) loader.classList.remove('hidden');
-  }
-
-  function hideDeleteLoader() {
-    const loader = document.getElementById('deleteLoader');
-    if (loader) loader.classList.add('hidden');
-  }
-
-  function showNotification(message, type = 'info', duration = 3000) {
-    let notif = document.getElementById('temp-notification');
-    if (!notif) {
-      notif = document.createElement('div');
-      notif.id = 'temp-notification';
-      document.body.appendChild(notif);
-    }
-    
-    notif.className = `header-notification ${type}`;
-    notif.textContent = message;
-    notif.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      height: 45px;
-      border-radius: 45px;
-      background: white;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 20px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: #2c3e50;
-      border: 2px solid;
-      z-index: 1100;
-      white-space: nowrap;
-      animation: notif-appear 0.3s ease;
-    `;
-    
-    if (type === 'error') {
-      notif.style.borderColor = '#ff7e9f';
-      notif.style.background = '#fff0f3';
-    } else if (type === 'success') {
-      notif.style.borderColor = '#4a90e2';
-      notif.style.background = '#e6f0ff';
-    } else {
-      notif.style.borderColor = '#6c7a8d';
-    }
-    
-    setTimeout(() => {
-      if (notif.parentNode) {
-        notif.style.animation = 'notif-disappear 0.3s ease forwards';
-        setTimeout(() => notif.remove(), 300);
-      }
-    }, duration);
-  }
-
-  // ---------------------------------------------
-  // UTILITAIRES
-  // ---------------------------------------------
-  function truncateName(name, max = 15) {
-    if (!name || name.length <= max) return name;
-    const dot = name.lastIndexOf('.');
-    if (dot === -1) return name.slice(0, max - 3) + '...';
-    const ext = name.slice(dot);
-    const base = name.slice(0, dot);
-    return base.slice(0, max - 3 - ext.length) + '...' + ext;
-  }
-
+  
   function formatFileSize(bytes) {
     if (!bytes) return '?';
-    const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+    const units = ['o', 'Ko', 'Mo'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
   }
-
-  // ---------------------------------------------
-  // ÉCOUTEURS GLOBAUX
-  // ---------------------------------------------
+  
+  function formatDateKey(date) {
+    const d = new Date(date);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  }
+  
+  function formatDateDisplay(date) {
+    const d = new Date(date);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+  
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
+  }
+  
+  function showNotification(message, type = 'info') {
+    const notif = document.createElement('div');
+    notif.className = `temp-notification ${type}`;
+    notif.textContent = message;
+    document.body.appendChild(notif);
+    setTimeout(() => { notif.style.opacity = '0'; setTimeout(() => notif.remove(), 300); }, 3000);
+  }
+  
+  function showSyncLoader(total) {
+    syncLoader.classList.remove('hidden');
+    updateSyncLoader(0, total);
+  }
+  
+  function updateSyncLoader(current, total) {
+    const count = syncLoader.querySelector('.sync-count');
+    if (count) count.textContent = `${current}/${total}`;
+  }
+  
+  function hideSyncLoader() {
+    syncLoader.classList.add('hidden');
+  }
+  
+  function showDeleteLoader(msg) {
+    const text = deleteLoader.querySelector('.delete-loader-text');
+    if (text) text.textContent = `Suppression ${msg}...`;
+    deleteLoader.classList.remove('hidden');
+  }
+  
+  function hideDeleteLoader() {
+    deleteLoader.classList.add('hidden');
+  }
+  
+  function startStorageMonitoring() {
+    setInterval(() => loadStorageStats(), 60000);
+  }
+  
+  // =============================================
+  // 12. ÉCOUTEURS D'ÉVÉNEMENTS
+  // =============================================
+  
   function setupEventListeners() {
-    if (addCategoryBtn) {
-      addCategoryBtn.addEventListener('click', createCategory);
-    }
+    settingsBtn?.addEventListener('click', () => window.location.href = 'para.html');
+    uploadBtn?.addEventListener('click', openUploadOverlay);
+    selectModeBtn?.addEventListener('click', toggleSelectionMode);
+    downloadSelectedBtn?.addEventListener('click', downloadSelected);
+    deleteSelectedBtn?.addEventListener('click', deleteSelected);
+    cancelSelectBtn?.addEventListener('click', toggleSelectionMode);
+    searchInput?.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(renderFiles, 300); });
+    addFilesToUploadBtn?.addEventListener('click', addFilesToUpload);
+    confirmUploadBtn?.addEventListener('click', uploadFiles);
+    closeUploadOverlayBtn?.addEventListener('click', closeUploadOverlay);
+    cancelUploadBtn?.addEventListener('click', closeUploadOverlay);
+    uploadOverlayBackdrop?.addEventListener('click', closeUploadOverlay);
     
-    if (uploadBtn) {
-      uploadBtn.addEventListener('click', openCategoryOverlay);
-    }
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    addCategoryBtn?.addEventListener('click', openCategoryOverlay);
+    closeCategoryOverlayBtn?.addEventListener('click', closeCategoryOverlay);
+    closeCategoryFooterBtn?.addEventListener('click', closeCategoryOverlay);
+    categoryOverlayBackdrop?.addEventListener('click', closeCategoryOverlay);
+    confirmAddCategory?.addEventListener('click', createCategory);
+    deleteCategoriesBtn?.addEventListener('click', deleteSelectedCategories);
     
-    if (categoryOverlayBackdrop) {
-      categoryOverlayBackdrop.addEventListener('click', closeCategoryOverlay);
-    }
-    
-    if (searchInput) {
-      let timeout;
-      searchInput.addEventListener('input', () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          renderFiles();
-        }, 300);
-      });
-    }
-    
-    if (settingsBtn) {
-      settingsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.location.href = 'para.html';
-      });
-    }
-    
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !categoryOverlay.classList.contains('hidden')) {
-        closeCategoryOverlay();
+    overlayCloseBtn?.addEventListener('click', closeFilePreview);
+    overlayBackdrop?.addEventListener('click', closeFilePreview);
+    saveMetadataBtn?.addEventListener('click', saveMetadata);
+    previewDownloadBtn?.addEventListener('click', () => { if (currentPreviewFile) downloadFile(currentPreviewFile); });
+    previewDeleteBtn?.addEventListener('click', () => { if (currentPreviewFile) { confirmDeleteFile(currentPreviewFile); closeFilePreview(); } });
+    previewFullscreenBtn?.addEventListener('click', () => {
+      if (currentPreviewFile) {
+        const { publicUrl } = supabase.storage.from(currentPreviewFile.bucket || 'fichiers').getPublicUrl(currentPreviewFile.chemin_storage).data;
+        window.open(publicUrl, '_blank');
       }
     });
+    
+    const editButtons = document.querySelectorAll('.edit-field');
+    editButtons.forEach(btn => btn.addEventListener('click', enableMetadataEdit));
+    
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fileOverlay.classList.contains('hidden')) closeFilePreview(); });
   }
-
-  // ---------------------------------------------
-  // DÉMARRAGE
-  // ---------------------------------------------
+  
+  // =============================================
+  // 13. DÉMARRAGE
+  // =============================================
+  
   init();
 })();
