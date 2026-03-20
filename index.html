@@ -22,20 +22,13 @@
     </div>
   </div>
 
-  <!-- HEADER -->
+  <!-- HEADER COMMUN -->
   <header class="header">
     <div class="header-left">
       <a href="index.html" class="logo-circle" aria-label="AEJ">
         <img src="assets/logo.png" alt="Logo AEJ">
       </a>
       <span class="site-name">AEJ</span>
-    </div>
-    <div class="header-center">
-      <div class="upload-status hidden" id="uploadStatus">
-        <i class="fas fa-circle-notch fa-spin"></i>
-        <span class="upload-progress" id="uploadProgress">0/0</span>
-        <span class="upload-text">Upload</span>
-      </div>
     </div>
     <div class="header-right">
       <a href="para.html" class="settings-btn" id="settingsBtn" aria-label="Paramètres">
@@ -44,29 +37,37 @@
     </div>
   </header>
 
-  <!-- DASHBOARD 30/70 -->
+  <!-- CONTENU PRINCIPAL 30/70 -->
   <main class="dashboard">
     <!-- COLONNE GAUCHE (30%) -->
     <aside class="colonne-gauche">
-      <!-- Barre de recherche FIXE -->
+      <!-- RECHERCHE AVANCÉE -->
       <div class="search-section">
         <div class="search-container">
           <i class="fas fa-search search-icon"></i>
-          <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un fichier...">
+          <input type="text" class="search-input" id="searchInput" placeholder="Rechercher...">
+        </div>
+        <div class="search-options">
+          <label class="search-option"><input type="checkbox" id="searchNom" checked> <span>Nom</span></label>
+          <label class="search-option"><input type="checkbox" id="searchMatricule" checked> <span>Matricule</span></label>
+          <label class="search-option"><input type="checkbox" id="searchCategorie"> <span>Catégorie</span></label>
+          <label class="search-option"><input type="checkbox" id="searchDate"> <span>Date</span></label>
         </div>
       </div>
 
-      <!-- Zone SCROLLABLE -->
+      <!-- ZONE SCROLLABLE -->
       <div class="scrollable-content">
-        <!-- Catégories (Filières) -->
+        <!-- Catégories -->
         <div class="categories-section">
           <div class="section-header">
-            <h3><i class="fas fa-folder"></i> Filières</h3>
-            <button class="add-category-btn" id="addCategoryBtn" title="Nouvelle filière">
+            <h3><i class="fas fa-folder"></i> Catégories</h3>
+            <button class="add-category-btn" id="addCategoryBtn" title="Nouvelle catégorie">
               <i class="fas fa-plus"></i>
             </button>
           </div>
-          <div class="categories-list" id="categoriesList"></div>
+          <div class="categories-list" id="categoriesList">
+            <!-- Sera injecté par JS -->
+          </div>
         </div>
 
         <!-- Statistiques -->
@@ -78,7 +79,7 @@
               <span class="stat-value" id="statsFichiers">0</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">Filières</span>
+              <span class="stat-label">Catégories</span>
               <span class="stat-value" id="statsCategories">0</span>
             </div>
             <div class="stat-item">
@@ -95,176 +96,265 @@
             <a href="vu.html" class="quick-link">
               <i class="fas fa-eye"></i> Vu.html
             </a>
-            <a href="archive.html" class="quick-link">
-              <i class="fas fa-archive"></i> Archives
-            </a>
+            
           </div>
+        </div>
+      </div>
+
+      <!-- BARRE STOCKAGE (bas de colonne) -->
+      <div class="storage-bar">
+        <div class="storage-info">
+          <i class="fas fa-database"></i>
+          <span>Stockage</span>
+          <span class="storage-usage" id="storageUsage">0 Mo / 1 Go</span>
+        </div>
+        <div class="storage-progress">
+          <div class="storage-progress-bar" id="storageProgressBar" style="width: 0%"></div>
+        </div>
+        <div class="storage-warning hidden" id="storageWarning">
+          <i class="fas fa-exclamation-triangle"></i> Espace faible
         </div>
       </div>
     </aside>
 
     <!-- COLONNE DROITE (70%) -->
     <section class="colonne-droite">
-      <!-- Filtres dates (fixes) -->
+      <!-- BARRE D'ACTIONS -->
+      <div class="action-bar" id="actionBar">
+        <button class="action-btn" id="selectModeBtn">
+          <i class="fas fa-check-square"></i> Sélection multiple
+        </button>
+        <button class="action-btn" id="downloadSelectedBtn" disabled>
+          <i class="fas fa-download"></i> Télécharger
+        </button>
+        <button class="action-btn" id="deleteSelectedBtn" disabled>
+          <i class="fas fa-trash"></i> Supprimer
+        </button>
+        <button class="action-btn cancel hidden" id="cancelSelectBtn">
+          <i class="fas fa-times"></i> Annuler
+        </button>
+        <span class="select-count hidden" id="selectCount">0 sélectionné</span>
+      </div>
+
+      <!-- FILTRES DATES -->
       <div class="filters-section">
         <div class="filters-scroll">
-          <div class="filters-row" id="filtersRow"></div>
+          <div class="filters-row" id="filtersRow">
+            <!-- Les filtres dates seront injectés par JS -->
+          </div>
         </div>
       </div>
 
-      <!-- Cadre principal scrollable -->
+      <!-- CADRE PRINCIPAL SCROLLABLE -->
       <div class="content-frame" id="contentFrame">
-        <div class="files-container" id="filesContainer"></div>
-        <button class="upload-frame-btn" id="uploadBtn" title="Uploader des fichiers">
+        <div class="files-container" id="filesContainer">
+          <!-- Le contenu sera injecté par JS -->
+        </div>
+        <button class="upload-frame-btn" id="uploadBtn">
           <i class="fas fa-plus"></i> Ajouter des fichiers
         </button>
       </div>
     </section>
   </main>
 
-  <!-- BARRE D'ACTIONS MULTI-SÉLECTION -->
-  <div class="multi-select-bar hidden" id="multiSelectBar">
-    <span class="select-count" id="selectCount">0 sélectionné</span>
-    <div class="multi-actions">
-      <button class="action-btn" id="downloadSelectedBtn" title="Télécharger">
-        <i class="fas fa-download"></i>
-      </button>
-      <button class="action-btn" id="deleteSelectedBtn" title="Supprimer">
-        <i class="fas fa-trash"></i>
-      </button>
-      <button class="action-btn" id="cancelSelectBtn" title="Annuler">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- ========== OVERLAYS ========== -->
-
-  <!-- OVERLAY UPLOAD (30/70) -->
-  <div class="overlay hidden" id="uploadOverlay">
+  <!-- ==================== OVERLAY UPLOAD UNIQUE ==================== -->
+  <div class="upload-overlay hidden" id="uploadOverlay">
     <div class="overlay-backdrop" id="uploadOverlayBackdrop"></div>
-    <div class="overlay-container overlay-70-30">
+    <div class="overlay-container upload-container">
       <div class="overlay-header">
-        <span>📤 Upload de fichiers</span>
-        <button class="overlay-close-btn" id="uploadOverlayClose"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="overlay-split">
-        <div class="overlay-left">
-          <h4><i class="fas fa-folder"></i> Choisir une filière</h4>
-          <div class="categories-upload-list" id="categoriesUploadList"></div>
+        <span class="overlay-title">Upload de fichiers</span>
+        <div class="timer-display" id="uploadTimer">
+          <i class="fas fa-hourglass-half"></i>
+          <span>10:00</span>
         </div>
-        <div class="overlay-right">
-          <h4><i class="fas fa-info-circle"></i> Instructions</h4>
-          <div class="instructions-content">
-            <p><strong>📌 Format du nom :</strong></p>
-            <code>[Matricule] [Lettre] [Nom Prénom] [Libre].pdf</code>
-            <p><strong>✨ Exemple :</strong></p>
-            <code>19167122 F IPOTE Ivan Gaël fiche.pdf</code>
-            <p><strong>⚠️ Règles :</strong></p>
-            <ul>
-              <li>PDF uniquement</li>
-              <li>Matricule : 8 chiffres</li>
-              <li>Lettre : une lettre majuscule</li>
-              <li>Nom/Prénom : min 2 caractères</li>
-              <li>Libre : optionnel</li>
-            </ul>
-            <p><strong>🔄 Remplacement auto</strong> si matricule existe</p>
+        <button class="overlay-close-btn" id="closeUploadOverlayBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="overlay-content upload-content">
+        <!-- COLONNE GAUCHE (30%) - Catégorie + Fichiers -->
+        <div class="upload-col-left">
+          <div class="category-select">
+            <h4><i class="fas fa-folder"></i> Choisir une catégorie</h4>
+            <div class="category-radio-list" id="uploadCategoryList">
+              <!-- Injecté par JS -->
+            </div>
+          </div>
+          
+          <div class="pending-files-section">
+            <h4><i class="fas fa-clock"></i> Fichiers en attente</h4>
+            <div class="pending-files-list" id="pendingFilesList">
+              <p class="empty-pending">Aucun fichier en attente</p>
+            </div>
+            <button class="btn-add-files" id="addFilesToUploadBtn">
+              <i class="fas fa-plus"></i> Ajouter des fichiers
+            </button>
+          </div>
+        </div>
+
+        <!-- COLONNE DROITE (70%) - Instructions + Détails -->
+        <div class="upload-col-right">
+          <div class="instructions-box">
+            <h4><i class="fas fa-info-circle"></i> Format du nom de fichier</h4>
+            <div class="format-box">
+              <code>[Matricule] [Lettre] [Nom] [Désignation].pdf</code>
+            </div>
+            <div class="example-box">
+              <strong>✨ Exemple :</strong>
+              <code>19167122 F IPOTE fiche.pdf</code>
+            </div>
+          </div>
+          
+          <div class="details-box" id="fileDetailsBox">
+            <h4><i class="fas fa-file-alt"></i> Détails du fichier</h4>
+            <div class="file-details-content" id="fileDetailsContent">
+              <p class="no-selection">Sélectionnez un fichier pour le modifier</p>
+            </div>
           </div>
         </div>
       </div>
+      
       <div class="overlay-footer">
-        <button class="btn-secondary" id="cancelUpload">Annuler</button>
-        <button class="btn-primary" id="confirmUpload" disabled>Valider</button>
+        <button class="overlay-close-footer" id="cancelUploadBtn">Annuler</button>
+        <button class="overlay-confirm-footer" id="confirmUploadBtn" disabled>Valider & Upload</button>
       </div>
     </div>
   </div>
 
-  <!-- OVERLAY CORRECTION (30/70) -->
-  <div class="overlay hidden" id="correctionOverlay">
-    <div class="overlay-backdrop"></div>
-    <div class="overlay-container overlay-70-30">
-      <div class="overlay-header">
-        <span>⚠️ Fichiers non enregistrés</span>
-        <button class="overlay-close-btn" id="correctionOverlayClose"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="overlay-split">
-        <div class="overlay-left">
-          <h4><i class="fas fa-list"></i> Fichiers en erreur</h4>
-          <div class="error-files-list" id="errorFilesList"></div>
-        </div>
-        <div class="overlay-right">
-          <h4><i class="fas fa-tools"></i> Correction</h4>
-          <div id="correctionDetail">
-            <p class="placeholder-text">Sélectionnez un fichier</p>
-          </div>
-        </div>
-      </div>
-      <div class="overlay-footer">
-        <button class="btn-secondary" id="ignoreAllErrors">Ignorer tout</button>
-        <button class="btn-primary" id="saveCorrections" disabled>Enregistrer (0)</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- OVERLAY CRÉATION FILIÈRE (30/70) -->
-  <div class="overlay hidden" id="categoryOverlay">
+  <!-- ==================== OVERLAY CATÉGORIES ==================== -->
+  <div class="category-overlay hidden" id="categoryOverlay">
     <div class="overlay-backdrop" id="categoryOverlayBackdrop"></div>
-    <div class="overlay-container overlay-70-30">
+    <div class="overlay-container category-container">
       <div class="overlay-header">
-        <span>📁 Nouvelle filière</span>
-        <button class="overlay-close-btn" id="categoryOverlayClose"><i class="fas fa-times"></i></button>
+        <span class="overlay-title">Gestion des catégories</span>
+        <button class="overlay-close-btn" id="closeCategoryOverlayBtn">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
-      <div class="overlay-split">
-        <div class="overlay-left">
-          <h4><i class="fas fa-list"></i> Filières existantes</h4>
-          <div class="existing-categories-list" id="existingCategoriesList"></div>
-          <div class="new-category-form">
-            <input type="text" id="newCategoryName" placeholder="Nom de la filière" class="category-input">
-            <button class="btn-primary small" id="createCategoryBtn">Créer</button>
+      
+      <div class="overlay-content category-content">
+        <!-- COLONNE GAUCHE (30%) - Ajout + Liste -->
+        <div class="category-col-left">
+          <div class="add-category-form">
+            <h4><i class="fas fa-plus-circle"></i> Nouvelle catégorie</h4>
+            <input type="text" id="newCategoryName" class="category-input" placeholder="Nom de la catégorie">
+            <button class="btn-add-category" id="confirmAddCategory">
+              <i class="fas fa-plus"></i> Ajouter
+            </button>
+          </div>
+          
+          <div class="existing-categories">
+            <h4><i class="fas fa-list"></i> Catégories existantes</h4>
+            <div class="categories-checkbox-list scrollable" id="categoriesCheckboxList">
+              <!-- Injecté par JS -->
+            </div>
+            <button class="btn-delete-categories" id="deleteCategoriesBtn" disabled>
+              <i class="fas fa-trash"></i> Supprimer sélectionnées
+            </button>
           </div>
         </div>
-        <div class="overlay-right">
-          <h4><i class="fas fa-graduation-cap"></i> Documentation</h4>
-          <div class="doc-content">
-            <p><strong>Qu'est-ce qu'une filière ?</strong></p>
-            <p>Les filières regroupent les stagiaires par domaine de formation.</p>
-            <p><strong>📌 Exemples :</strong></p>
-            <ul>
-              <li>Informatique / Développement</li>
-              <li>Commerce / Marketing</li>
-              <li>BTP / Génie Civil</li>
-              <li>Électrotechnique</li>
-              <li>Comptabilité / Gestion</li>
-            </ul>
-            <p><strong>✅ Conseils :</strong> noms courts, sans accents, uniques</p>
-            <p><strong>⚠️ Attention :</strong> supprimer une filière supprime ses fichiers !</p>
+
+        <!-- COLONNE DROITE (70%) - Instructions -->
+        <div class="category-col-right">
+          <div class="instructions-box">
+            <h4><i class="fas fa-info-circle"></i> Instructions</h4>
+            <p>Les catégories permettent d'organiser vos fichiers par filière, type ou période.</p>
+            <div class="examples">
+              <strong>✨ Exemples :</strong>
+              <ul>
+                <li>Filière Informatique</li>
+                <li>Filière Commerce</li>
+                <li>Attestations 2025</li>
+                <li>Diplômes</li>
+              </ul>
+            </div>
+            <div class="warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Attention :</strong> Supprimer une catégorie supprime TOUS ses fichiers associés !
+            </div>
           </div>
         </div>
       </div>
+      
       <div class="overlay-footer">
-        <button class="btn-secondary" id="closeCategoryOverlay">Fermer</button>
+        <button class="overlay-close-footer" id="closeCategoryFooterBtn">Fermer</button>
       </div>
     </div>
   </div>
 
-  <div class="overlay-left metadata-panel">
-  <h4><i class="fas fa-info-circle"></i> Métadonnées</h4>
-  <div class="metadata-form">
-    <label>Nom du fichier</label>
-    <input type="text" id="editFilename" class="metadata-input">
-    
-    <label>Filière</label>
-    <select id="editFiliere" class="metadata-select"></select>
-    
-    <label>Nom du stagiaire</label>
-    <input type="text" id="editStagiaire" class="metadata-input" placeholder="Nom du stagiaire">
-    
-    <label>Matricule</label>
-    <input type="text" id="editMatricule" class="metadata-input" placeholder="19167122 F">
-    
-    <button class="btn-primary" id="updateMetadataBtn">🔄 Mettre à jour</button>
+  <!-- ==================== OVERLAY APERÇU PDF ==================== -->
+  <div class="file-overlay hidden" id="fileOverlay">
+    <div class="overlay-backdrop" id="overlayBackdrop"></div>
+    <div class="overlay-container preview-container">
+      <div class="overlay-header">
+        <span class="overlay-filename" id="overlayFilename"></span>
+        <button class="overlay-close-btn" id="overlayCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="overlay-content preview-content">
+        <!-- COLONNE GAUCHE (30%) - Métadonnées -->
+        <div class="preview-col-left">
+          <h4><i class="fas fa-info-circle"></i> Métadonnées</h4>
+          <div class="metadata-form" id="metadataForm">
+            <div class="metadata-field">
+              <label>Matricule :</label>
+              <input type="text" id="previewMatricule" class="metadata-input" readonly>
+              <button class="edit-field" data-field="matricule">✏️</button>
+            </div>
+            <div class="metadata-field">
+              <label>Nom :</label>
+              <input type="text" id="previewNom" class="metadata-input" readonly>
+              <button class="edit-field" data-field="nom">✏️</button>
+            </div>
+            <div class="metadata-field">
+              <label>Prénom :</label>
+              <input type="text" id="previewPrenom" class="metadata-input" readonly>
+              <button class="edit-field" data-field="prenom">✏️</button>
+            </div>
+            <div class="metadata-field">
+              <label>Désignation :</label>
+              <input type="text" id="previewDesignation" class="metadata-input" readonly>
+              <button class="edit-field" data-field="designation">✏️</button>
+            </div>
+            <div class="metadata-separator"></div>
+            <div class="metadata-static">
+              <p><i class="fas fa-weight-hanging"></i> Taille : <span id="previewTaille">-</span></p>
+              <p><i class="fas fa-calendar"></i> Date : <span id="previewDate">-</span></p>
+              <p><i class="fas fa-folder"></i> Catégorie : <span id="previewCategorie">-</span></p>
+              <p><i class="fas fa-graduation-cap"></i> <span id="previewFiliere"></span></p>
+            </div>
+            <button class="btn-save-metadata" id="saveMetadataBtn">💾 Sauvegarder</button>
+          </div>
+        </div>
+
+        <!-- COLONNE DROITE (70%) - Aperçu PDF -->
+        <div class="preview-col-right">
+          <div class="pdf-viewer" id="pdfViewer">
+            <div class="pdf-loading">
+              <div class="loading-spinner"></div>
+              <p>Chargement du PDF...</p>
+            </div>
+            <iframe id="pdfIframe" class="pdf-iframe hidden" frameborder="0"></iframe>
+          </div>
+          <div class="preview-actions">
+            <button class="preview-action-btn" id="previewDownloadBtn" title="Télécharger">
+              <i class="fas fa-download"></i>
+            </button>
+            <button class="preview-action-btn" id="previewDeleteBtn" title="Supprimer">
+              <i class="fas fa-trash"></i>
+            </button>
+            <button class="preview-action-btn" id="previewFullscreenBtn" title="Plein écran">
+              <i class="fas fa-expand"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+
   <!-- SYNC LOADER -->
   <div class="sync-loader hidden" id="syncLoader">
     <div class="sync-loader-content">
@@ -286,5 +376,6 @@
   <!-- Scripts -->
   <script src="js/theme.js"></script>
   <script src="js/index.js"></script>
+  <script src="js/upload.js"></script>
 </body>
 </html>
