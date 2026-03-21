@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>AEJ • Info</title>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/info.css">
+</head>
+<body>
+  <!-- LOADER INITIAL AVEC FLOU -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-title">AEJ INFO</div>
+    </div>
+  </div>
+
+  <!-- HEADER GLOBAL -->
+  <header class="header">
+    <a href="index.html" class="logo-circle" aria-label="AEJ">
+      <img src="assets/logo.png" alt="Logo AEJ" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'url(%23g)\'/%3E%3Cdefs%3E%3ClinearGradient id=\'g\' x1=\'0%25\' y1=\'0%25\' x2=\'100%25\' y2=\'100%25\'%3E%3Cstop offset=\'0%25\' stop-color=\'%234a90e2\'/%3E%3Cstop offset=\'100%25\' stop-color=\'%23ff7e9f\'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x=\'50\' y=\'70\' font-size=\'50\' text-anchor=\'middle\' fill=\'white\' font-family=\'Arial\'%3EAEJ%3C/text%3E%3C/svg%3E';">
+    </a>
+    <div class="header-content" id="headerContent">
+      <!-- Contenu dynamique : barre recherche, notification, fichier en attente, mode sélection -->
+      <div class="search-wrapper" id="searchWrapper">
+        <div class="search-container">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-input" id="searchInput" placeholder="Rechercher une publication...">
+        </div>
+      </div>
+      <div class="notification-message hidden" id="notificationMessage"></div>
+      <div class="pending-file-info hidden" id="pendingFileInfo">
+        <i class="fas fa-paperclip"></i>
+        <span id="pendingFileName"></span> en attente
+      </div>
+      <div class="selection-mode-bar hidden" id="selectionModeBar">
+        <i class="fas fa-check-circle"></i>
+        <span id="selectionCount">0 sélectionné(s)</span>
+        <button class="selection-delete-btn" id="selectionDeleteBtn">
+          <i class="fas fa-trash"></i> Supprimer
+        </button>
+        <button class="selection-cancel-btn" id="selectionCancelBtn">
+          <i class="fas fa-times"></i> Annuler
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- LAYOUT PRINCIPAL 30/70 -->
+  <div class="main-layout">
+    <!-- COLONNE GAUCHE 30% -->
+    <aside class="sidebar-left" id="sidebarLeft">
+      <div class="sidebar-scroll">
+        <!-- Header admin -->
+        <div class="admin-header">
+          <div class="admin-avatar">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <div class="admin-info">
+            <span class="admin-name" id="adminName">Admin AEJ</span>
+            <span class="admin-stats" id="adminStats">0 publications</span>
+          </div>
+        </div>
+
+        <!-- Stats globales -->
+        <div class="stats-global">
+          <div class="stat-card">
+            <i class="fas fa-eye"></i>
+            <div class="stat-number" id="totalVues">0</div>
+            <div class="stat-label">vues</div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-heart"></i>
+            <div class="stat-number" id="totalLikes">0</div>
+            <div class="stat-label">likes</div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-menu">
+          <button class="action-btn" id="themeToggle">
+            <i class="fas fa-moon"></i>
+            <span>Thème</span>
+          </button>
+          <button class="action-btn" id="dashboardBtn">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Tableau de bord</span>
+          </button>
+          <button class="action-btn" id="selectionModeBtn">
+            <i class="fas fa-check-double"></i>
+            <span>Sélection multiple</span>
+          </button>
+        </div>
+
+        <!-- Barre d'écriture (footer de la colonne gauche) -->
+        <div class="compose-area">
+          <div class="compose-container">
+            <button class="compose-btn attach-btn" id="attachBtn" title="Joindre un fichier">
+              <i class="fas fa-paperclip"></i>
+            </button>
+            <div class="compose-input-wrapper">
+              <textarea class="compose-input" id="composeInput" placeholder="Écrire un message..." rows="1"></textarea>
+            </div>
+            <button class="compose-btn send-btn" id="sendBtn" title="Envoyer">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+          <input type="file" id="fileInput" style="display: none;" accept="image/*,video/*,application/pdf">
+        </div>
+      </div>
+    </aside>
+
+    <!-- COLONNE DROITE 70% -->
+    <main class="main-content">
+      <div class="feed-container" id="feedContainer">
+        <!-- Les publications seront injectées ici -->
+      </div>
+    </main>
+  </div>
+
+  <!-- OVERLAY GESTION FICHIERS (supprimé, plus utilisé) -->
+  <!-- OVERLAY STATISTIQUES -->
+  <div class="stats-overlay hidden" id="statsOverlay">
+    <div class="overlay-backdrop" id="statsBackdrop"></div>
+    <div class="stats-container">
+      <div class="stats-header">
+        <span>Statistiques</span>
+        <button class="stats-close" id="statsClose">&times;</button>
+      </div>
+      <div class="stats-content" id="statsContent">
+        <div class="stats-card">
+          <i class="fas fa-eye"></i>
+          <div class="stats-number" id="statsTotalVues">0</div>
+          <div class="stats-label">Vues totales</div>
+        </div>
+        <div class="stats-card">
+          <i class="fas fa-heart"></i>
+          <div class="stats-number" id="statsTotalLikes">0</div>
+          <div class="stats-label">Likes totaux</div>
+        </div>
+        <div class="stats-card">
+          <i class="fas fa-file-alt"></i>
+          <div class="stats-number" id="statsTotalPublications">0</div>
+          <div class="stats-label">Publications</div>
+        </div>
+        <div class="stats-details" id="statsDetails">
+          <!-- Détails par publication -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY MODIFICATION PUBLICATION -->
+  <div class="edit-overlay hidden" id="editOverlay">
+    <div class="overlay-backdrop" id="editBackdrop"></div>
+    <div class="edit-container">
+      <div class="edit-header">
+        <span>Modifier le message</span>
+        <button class="edit-close" id="editClose">&times;</button>
+      </div>
+      <div class="edit-content">
+        <textarea class="edit-textarea" id="editTextarea" placeholder="Votre message..." rows="4"></textarea>
+        <button class="edit-save-btn" id="editSaveBtn">
+          <i class="fas fa-save"></i> Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/theme.js"></script>
+  <script src="js/info.js"></script>
+</body>
+</html>
