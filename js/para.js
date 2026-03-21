@@ -1,5 +1,5 @@
 // ===== para.js =====
-// Version SANS statistiques et SANS mode nuit
+// Version PC - 30/70 avec mode nuit/jour
 
 (function() {
   // ---------------------------------------------
@@ -23,6 +23,11 @@
   const nomInput = document.getElementById('nom');
   const emailInput = document.getElementById('email');
   const saveProfileBtn = document.getElementById('saveProfileBtn');
+  const statsFichiers = document.getElementById('statsFichiers');
+  const statsCategories = document.getElementById('statsCategories');
+  const statsTelechargements = document.getElementById('statsTelechargements');
+  const themeNight = document.getElementById('themeNight');
+  const themeDay = document.getElementById('themeDay');
   const logoutBtn = document.getElementById('logoutBtn');
   const backBtn = document.getElementById('backBtn');
   const gotoVu = document.getElementById('gotoVu');
@@ -32,13 +37,16 @@
   // ---------------------------------------------
   async function init() {
     try {
-      await waitForDom();
+      loadingOverlay?.classList.remove('hidden');
       await initSupabase();
       await checkSession();
       
       if (currentUser) {
-        loadUserData();
+        await loadUserData();
+        await loadLocalStats();
+        await loadTelechargementsStats();
         setupEventListeners();
+        loadThemePreference();
       } else {
         redirectToAuth();
       }
@@ -47,32 +55,17 @@
       console.error('Erreur initialisation:', error);
       showNotification('Erreur de chargement', 'error');
     } finally {
-      setTimeout(() => {
-        if (loadingOverlay) loadingOverlay.classList.add('hidden');
-      }, 300);
+      setTimeout(() => loadingOverlay?.classList.add('hidden'), 500);
     }
-  }
-
-  function waitForDom() {
-    return new Promise(resolve => {
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', resolve);
-      } else {
-        resolve();
-      }
-    });
   }
 
   async function initSupabase() {
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
+    if (window.supabase?.createClient) {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      return;
+    } else {
+      await loadSupabaseScript();
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-    await loadSupabaseScript();
-    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-      throw new Error('Supabase non disponible');
-    }
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
   function loadSupabaseScript() {
@@ -131,6 +124,55 @@
     if (nomInput) nomInput.value = userMetadata.last_name || '';
   }
 
+  async function loadLocalStats() {
+    try {
+      // Compter les fichiers
+      const { count: fichiersCount, error: fichiersError } = await supabase
+        .from('fichiers')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id);
+      
+      if (fichiersError) throw fichiersError;
+      
+      // Compter les catégories
+      const { count: categoriesCount, error: categoriesError } = await supabase
+        .from('dossiers')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .is('parent_id', null);
+      
+      if (categoriesError) throw categoriesError;
+      
+      if (statsFichiers) statsFichiers.textContent = fichiersCount?.toString() || '0';
+      if (statsCategories) statsCategories.textContent = categoriesCount?.toString() || '0';
+      
+    } catch (error) {
+      console.error('Erreur chargement stats locales:', error);
+      if (statsFichiers) statsFichiers.textContent = '0';
+      if (statsCategories) statsCategories.textContent = '0';
+    }
+  }
+
+  async function loadTelechargementsStats() {
+    try {
+      const { count, error } = await supabase
+        .from('telechargements')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) {
+        console.warn('Table telechargements non disponible');
+        if (statsTelechargements) statsTelechargements.textContent = '0';
+        return;
+      }
+      
+      if (statsTelechargements) statsTelechargements.textContent = count?.toString() || '0';
+      
+    } catch (error) {
+      console.warn('Erreur chargement stats téléchargements:', error);
+      if (statsTelechargements) statsTelechargements.textContent = '0';
+    }
+  }
+
   // ---------------------------------------------
   // SAUVEGARDE DU PROFIL
   // ---------------------------------------------
@@ -161,6 +203,27 @@
       console.error('Erreur sauvegarde:', error);
       showNotification('Erreur lors de la sauvegarde', 'error');
     }
+  }
+
+  // ---------------------------------------------
+  // GESTION DU THÈME (Mode Nuit/Jour)
+  // ---------------------------------------------
+  function loadThemePreference() {
+    const savedTheme = localStorage.getItem('aej_theme') || 'day';
+    setTheme(savedTheme);
+  }
+
+  function setTheme(theme) {
+    if (theme === 'night') {
+      document.body.classList.add('night-mode');
+      themeNight?.classList.add('active');
+      themeDay?.classList.remove('active');
+    } else {
+      document.body.classList.remove('night-mode');
+      themeDay?.classList.add('active');
+      themeNight?.classList.remove('active');
+    }
+    localStorage.setItem('aej_theme', theme);
   }
 
   // ---------------------------------------------
@@ -197,7 +260,7 @@
     document.body.appendChild(notif);
     
     setTimeout(() => {
-      notif.style.animation = 'notif-disappear 0.3s ease forwards';
+      notif.style.opacity = '0';
       setTimeout(() => notif.remove(), 300);
     }, duration);
   }
@@ -206,14 +269,26 @@
   // ÉCOUTEURS
   // ---------------------------------------------
   function setupEventListeners() {
+    // Sauvegarde profil
     if (saveProfileBtn) {
       saveProfileBtn.addEventListener('click', saveProfile);
     }
     
+    // Mode nuit/jour
+    if (themeNight) {
+      themeNight.addEventListener('click', () => setTheme('night'));
+    }
+    
+    if (themeDay) {
+      themeDay.addEventListener('click', () => setTheme('day'));
+    }
+    
+    // Déconnexion
     if (logoutBtn) {
       logoutBtn.addEventListener('click', handleLogout);
     }
     
+    // Retour à l'accueil
     if (backBtn) {
       backBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -221,6 +296,7 @@
       });
     }
     
+    // Accès rapide Vu.html
     if (gotoVu) {
       gotoVu.addEventListener('click', (e) => {
         e.preventDefault();
@@ -228,6 +304,7 @@
       });
     }
     
+    // Validation par Entrée dans les champs
     [prenomInput, nomInput].forEach(input => {
       if (input) {
         input.addEventListener('keypress', (e) => {
@@ -236,6 +313,14 @@
             saveProfile();
           }
         });
+      }
+    });
+    
+    // Recharger les stats quand la page devient visible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        loadLocalStats();
+        loadTelechargementsStats();
       }
     });
   }
