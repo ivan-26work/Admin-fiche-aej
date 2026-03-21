@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>AEJ • Paramètres</title>
   
   <!-- Google Fonts -->
@@ -10,15 +10,16 @@
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   
-  <!-- Style propre à para.html -->
+  <!-- Styles CSS -->
   <link rel="stylesheet" href="css/para.css">
 </head>
 <body>
   <!-- LOADER INITIAL -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-card">
-      <div class="loading-title">AEJ</div>
       <div class="loading-spinner"></div>
+      <div class="loading-title">AEJ</div>
+      <p class="loading-text">Chargement des paramètres...</p>
     </div>
   </div>
 
@@ -31,81 +32,229 @@
     <div class="header-placeholder"></div>
   </header>
 
-  <!-- CONTENU PRINCIPAL -->
-  <main class="main-content">
-    <!-- CARTE 1 - PROFIL UTILISATEUR -->
-    <div class="param-card" id="profileCard">
-      <div class="card-header">
-        <i class="fas fa-user-circle"></i>
-        <h2>Profil</h2>
-      </div>
-      
-      <div class="card-content">
-        <div class="form-group">
-          <label for="prenom">Prénom</label>
-          <input type="text" id="prenom" class="param-input" placeholder="Votre prénom">
+  <!-- CONTENU PRINCIPAL 30/70 -->
+  <main class="dashboard">
+    <!-- COLONNE GAUCHE (30%) - Fixe, contenu scrollable -->
+    <aside class="colonne-gauche">
+      <div class="scrollable-content">
+        <!-- Informations Admin -->
+        <div class="param-card" id="profileCard">
+          <div class="card-header">
+            <i class="fas fa-user-circle"></i>
+            <h2>Informations admin</h2>
+          </div>
+          <div class="card-content">
+            <div class="form-group">
+              <label for="prenom">Prénom</label>
+              <input type="text" id="prenom" class="param-input" placeholder="Votre prénom">
+            </div>
+            <div class="form-group">
+              <label for="nom">Nom</label>
+              <input type="text" id="nom" class="param-input" placeholder="Votre nom">
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" class="param-input" readonly disabled>
+            </div>
+            <button class="btn-save" id="saveProfileBtn">
+              <i class="fas fa-save"></i> Sauvegarder
+            </button>
+          </div>
         </div>
-        
-        <div class="form-group">
-          <label for="nom">Nom</label>
-          <input type="text" id="nom" class="param-input" placeholder="Votre nom">
+
+        <!-- Statistiques -->
+        <div class="param-card" id="statsCard">
+          <div class="card-header">
+            <i class="fas fa-chart-pie"></i>
+            <h2>Statistiques</h2>
+          </div>
+          <div class="card-content stats-content">
+            <div class="stat-item">
+              <span class="stat-label">Fichiers uploadés</span>
+              <span class="stat-value" id="statsFichiers">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Catégories</span>
+              <span class="stat-value" id="statsCategories">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Téléchargements (total)</span>
+              <span class="stat-value" id="statsTelechargements">0</span>
+            </div>
+          </div>
         </div>
-        
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" class="param-input" readonly disabled>
+
+        <!-- Apparence - Mode Nuit/Jour -->
+        <div class="param-card" id="themeCard">
+          <div class="card-header">
+            <i class="fas fa-palette"></i>
+            <h2>Apparence</h2>
+          </div>
+          <div class="card-content theme-content">
+            <div class="theme-toggle">
+              <button class="theme-btn" id="themeNight" data-theme="night">
+                <i class="fas fa-moon"></i> Nuit
+              </button>
+              <button class="theme-btn active" id="themeDay" data-theme="day">
+                <i class="fas fa-sun"></i> Jour
+              </button>
+            </div>
+            <p class="theme-info">💡 Le mode s'applique sur toutes les pages du site (dashboard, connexion, etc.)</p>
+          </div>
         </div>
-        
-        <button class="btn-save" id="saveProfileBtn">
-          <i class="fas fa-save"></i> Sauvegarder
+
+        <!-- Accès rapide -->
+        <div class="param-card" id="navCard">
+          <div class="card-header">
+            <i class="fas fa-compass"></i>
+            <h2>Accès rapide</h2>
+          </div>
+          <div class="card-content nav-content">
+            <a href="vu.html" class="nav-btn" id="gotoVu">
+              <i class="fas fa-eye"></i> Vu.html
+            </a>
+          </div>
+        </div>
+
+        <!-- Bouton Déconnexion -->
+        <button class="logout-btn" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i> Déconnexion
         </button>
       </div>
-    </div>
+    </aside>
 
-    <!-- CARTE 2 - ACCÈS RAPIDE (archive.html supprimé) -->
-    <div class="param-card" id="navCard">
-      <div class="card-header">
-        <i class="fas fa-compass"></i>
-        <h2>Accès rapide</h2>
+    <!-- COLONNE DROITE (70%) - Guide d'utilisation -->
+    <section class="colonne-droite">
+      <div class="guide-card">
+        <div class="guide-header">
+          <i class="fas fa-book-open"></i>
+          <h2>Guide d'utilisation</h2>
+        </div>
+        <div class="guide-content">
+          <!-- Section 1 - Connexion -->
+          <div class="guide-section">
+            <h3><i class="fas fa-key"></i> 1. Connexion</h3>
+            <div class="guide-text">
+              <p>Pour accéder à l'interface d'administration :</p>
+              <ul>
+                <li>Saisissez votre <strong>email</strong> et votre <strong>mot de passe</strong></li>
+                <li>Entrez le <strong>code secret</strong> : <code>ipote233@</code></li>
+                <li>Cliquez sur <strong>"Se connecter"</strong></li>
+              </ul>
+              <p class="guide-note">⚠️ Le code secret est unique et confidentiel.</p>
+            </div>
+          </div>
+
+          <!-- Section 2 - Tableau de bord -->
+          <div class="guide-section">
+            <h3><i class="fas fa-tachometer-alt"></i> 2. Tableau de bord</h3>
+            <div class="guide-text">
+              <p>Le tableau de bord est organisé en deux colonnes :</p>
+              <ul>
+                <li><strong>Colonne gauche (30%)</strong> : Recherche, catégories, statistiques, accès rapide</li>
+                <li><strong>Colonne droite (70%)</strong> : Filtres par date, grille des fichiers</li>
+              </ul>
+              <p><strong>Fonctionnalités :</strong></p>
+              <ul>
+                <li>🔍 <strong>Recherche</strong> : filtre les fichiers par nom ou matricule</li>
+                <li>📁 <strong>Catégories</strong> : cochez pour filtrer par catégorie</li>
+                <li>📅 <strong>Filtres dates</strong> : cliquez sur une date pour voir les fichiers de ce jour</li>
+                <li>📥 <strong>Téléchargement</strong> : cliquez sur l'icône de téléchargement</li>
+                <li>🗑️ <strong>Suppression</strong> : cliquez sur la corbeille (confirmation requise)</li>
+                <li>👁️ <strong>Aperçu</strong> : cliquez sur une carte pour visualiser le PDF</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Section 3 - Upload de fichiers -->
+          <div class="guide-section">
+            <h3><i class="fas fa-upload"></i> 3. Upload de fichiers</h3>
+            <div class="guide-text">
+              <p><strong>Format obligatoire :</strong></p>
+              <div class="format-box">
+                <code>[Matricule] [Lettre] [Nom] [Désignation].pdf</code>
+              </div>
+              <p><strong>Exemple :</strong></p>
+              <div class="example-box">
+                <code>19167122 F IPOTE fiche.pdf</code>
+              </div>
+              <p><strong>Règles :</strong></p>
+              <ul>
+                <li>Matricule : 8 chiffres</li>
+                <li>Lettre : 1 majuscule (A-Z)</li>
+                <li>Nom : au moins 2 lettres (maj/min acceptées)</li>
+                <li>Désignation : texte libre (ex: fiche, attestation, diplome)</li>
+              </ul>
+              <p class="guide-note">📌 Si le matricule existe déjà, l'ancien fichier sera automatiquement remplacé.</p>
+            </div>
+          </div>
+
+          <!-- Section 4 - Gestion des catégories -->
+          <div class="guide-section">
+            <h3><i class="fas fa-folder-plus"></i> 4. Gestion des catégories</h3>
+            <div class="guide-text">
+              <ul>
+                <li><strong>Créer une catégorie</strong> : cliquez sur le bouton <i class="fas fa-plus"></i> à côté de "Catégories"</li>
+                <li><strong>Filtrer</strong> : cochez/décochez les catégories dans la colonne gauche</li>
+                <li><strong>Supprimer une catégorie</strong> : appui long sur la catégorie, puis confirmation</li>
+              </ul>
+              <p class="guide-note warning">⚠️ Supprimer une catégorie supprime TOUS les fichiers associés !</p>
+            </div>
+          </div>
+
+          <!-- Section 5 - Consultation des téléchargements -->
+          <div class="guide-section">
+            <h3><i class="fas fa-chart-line"></i> 5. Consultation des téléchargements</h3>
+            <div class="guide-text">
+              <p>La page <strong>Vu.html</strong> permet de consulter l'historique des téléchargements des stagiaires :</p>
+              <ul>
+                <li>Filtres par date</li>
+                <li>Recherche par nom, prénom ou matricule</li>
+                <li>Affichage des détails (téléphone, filière, date)</li>
+                <li>Actions WhatsApp et appel direct</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Section 6 - Bonnes pratiques -->
+          <div class="guide-section">
+            <h3><i class="fas fa-lightbulb"></i> 6. Bonnes pratiques</h3>
+            <div class="guide-text">
+              <ul>
+                <li>📄 <strong>Nommez les fichiers</strong> selon le format obligatoire</li>
+                <li>🔍 <strong>Utilisez les filtres</strong> pour retrouver rapidement vos fichiers</li>
+                <li>📁 <strong>Organisez par catégories</strong> (filières, types, périodes)</li>
+                <li>🔄 <strong>Vérifiez les doublons</strong> avant upload</li>
+                <li>📱 <strong>Testez sur mobile</strong> pour vérifier le responsive</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
-      
-      <div class="card-content nav-content">
-        <a href="vu.html" class="nav-btn" id="gotoVu">
-          <i class="fas fa-eye"></i> Vu.html
-        </a>
-        <!-- Lien archive.html supprimé -->
-      </div>
-    </div>
-
-    <!-- CARTE MODE NUIT/JOUR SUPPRIMÉE -->
-
-    <!-- BARRE INFÉRIEURE 50px -->
-    <div class="footer-bar">
-      <a href="contact.html" class="footer-link">
-        <i class="fas fa-phone-alt"></i> Contact
-      </a>
-      <span class="footer-separator">•</span>
-      <a href="confidentialite.html" class="footer-link">
-        <i class="fas fa-lock"></i> Confidentialité
-      </a>
-      <span class="footer-separator">•</span>
-      <a href="apropos.html" class="footer-link">
-        <i class="fas fa-info-circle"></i> À propos
-      </a>
-      <span class="footer-separator">•</span>
-      <a href="https://emploi-jeune.fr" target="_blank" class="footer-link site-link">
-        <i class="fas fa-external-link-alt"></i> Site Emploi Jeune
-      </a>
-    </div>
-
-    <!-- BOUTON DÉCONNEXION -->
-    <button class="logout-btn" id="logoutBtn">
-      <i class="fas fa-sign-out-alt"></i> Déconnexion
-    </button>
+    </section>
   </main>
 
-  <!-- Script JavaScript propre à para.html -->
+  <!-- FOOTER (liens uniquement) -->
+  <footer class="footer-bar">
+    <a href="contact.html" class="footer-link">
+      <i class="fas fa-phone-alt"></i> Contact
+    </a>
+    <span class="footer-separator">•</span>
+    <a href="confidentialite.html" class="footer-link">
+      <i class="fas fa-lock"></i> Confidentialité
+    </a>
+    <span class="footer-separator">•</span>
+    <a href="apropos.html" class="footer-link">
+      <i class="fas fa-info-circle"></i> À propos
+    </a>
+    <span class="footer-separator">•</span>
+    <a href="https://agenceemploijeunes.ci/site/" target="_blank" class="footer-link site-link">
+      <i class="fas fa-external-link-alt"></i> Site AEJ
+    </a>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/theme.js"></script>
   <script src="js/para.js"></script>
-  <script src="js/stats.js"></script>
 </body>
 </html>
