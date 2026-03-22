@@ -17,8 +17,8 @@
   <!-- LOADER INITIAL -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-card">
-      <div class="loading-title">AEJ</div>
       <div class="loading-spinner"></div>
+      <div class="loading-title">AEJ</div>
     </div>
   </div>
 
@@ -26,12 +26,12 @@
   <header class="header">
     <div class="header-left">
       <a href="index.html" class="logo-circle" aria-label="AEJ">
-        <img src="assets/logo.png" alt="Logo AEJ">
+        <img src="assets/logo.png" alt="Logo AEJ" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'url(%23g)\'/%3E%3Cdefs%3E%3ClinearGradient id=\'g\' x1=\'0%25\' y1=\'0%25\' x2=\'100%25\' y2=\'100%25\'%3E%3Cstop offset=\'0%25\' stop-color=\'%234a90e2\'/%3E%3Cstop offset=\'100%25\' stop-color=\'%23ff7e9f\'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x=\'50\' y=\'70\' font-size=\'50\' text-anchor=\'middle\' fill=\'white\' font-family=\'Arial\'%3EAEJ%3C/text%3E%3C/svg%3E';">
       </a>
       <span class="site-name">AEJ</span>
     </div>
     <div class="header-right">
-      <a href="para.html" class="settings-btn" id="settingsBtn" aria-label="Paramètres">
+      <a href="para.html" class="settings-btn" aria-label="Paramètres">
         <i class="fas fa-cog"></i>
       </a>
     </div>
@@ -45,7 +45,7 @@
       <div class="search-section">
         <div class="search-container">
           <i class="fas fa-search search-icon"></i>
-          <input type="text" class="search-input" id="searchInput" placeholder="Rechercher...">
+          <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un fichier...">
         </div>
         <div class="search-options">
           <label class="search-option"><input type="checkbox" id="searchNom" checked> <span>Nom</span></label>
@@ -93,12 +93,12 @@
         <div class="quick-access-section">
           <h3><i class="fas fa-compass"></i> Accès rapide</h3>
           <div class="quick-links">
-            <a href="vu.html" class="quick-link">
-              <i class="fas fa-eye"></i> Vu.html
-            </a>
-            <a href="archive.html" class="quick-link">
-              <i class="fas fa-archive"></i> Archives
-            </a>
+            <a href="para.html" class="quick-link"><i class="fas fa-cog"></i> Paramètres</a>
+            <a href="vu.html" class="quick-link"><i class="fas fa-eye"></i> Vu</a>
+            
+            <a href="contact.html" class="quick-link"><i class="fas fa-phone-alt"></i> Contact</a>
+            <a href="apropos.html" class="quick-link"><i class="fas fa-file-alt"></i> À propos</a>
+            <a href="confidentialite.html" class="quick-link"><i class="fas fa-lock"></i> Confidentialité</a>
           </div>
         </div>
       </div>
@@ -122,7 +122,7 @@
     <!-- COLONNE DROITE (70%) -->
     <section class="colonne-droite">
       <!-- BARRE D'ACTIONS -->
-      <div class="action-bar" id="actionBar">
+      <div class="action-bar">
         <button class="action-btn" id="selectModeBtn">
           <i class="fas fa-check-square"></i> Sélection multiple
         </button>
@@ -160,23 +160,26 @@
   </main>
 
   <!-- ==================== OVERLAY UPLOAD UNIQUE ==================== -->
-  <div class="upload-overlay hidden" id="uploadOverlay">
-    <div class="overlay-backdrop" id="uploadOverlayBackdrop"></div>
-    <div class="overlay-container upload-container">
-      <div class="overlay-header">
-        <span class="overlay-title">Upload de fichiers</span>
-        <div class="timer-display" id="uploadTimer">
-          <i class="fas fa-hourglass-half"></i>
-          <span>10:00</span>
-        </div>
-        <button class="overlay-close-btn" id="closeUploadOverlayBtn">
-          <i class="fas fa-times"></i>
-        </button>
+  <!-- ===== REMPLACER L'OVERLAY UPLOAD DANS index.html ===== -->
+<!-- ==================== OVERLAY UPLOAD UNIQUE ==================== -->
+<div class="upload-overlay hidden" id="uploadOverlay">
+  <div class="overlay-backdrop" id="uploadOverlayBackdrop"></div>
+  <div class="overlay-container upload-container">
+    <div class="overlay-header">
+      <span class="overlay-title">Upload de fichiers</span>
+      <div class="timer-display" id="uploadTimer">
+        <i class="fas fa-hourglass-half"></i>
+        <span>10:00</span>
       </div>
-      
-      <div class="overlay-content upload-content">
-        <!-- COLONNE GAUCHE (30%) - Catégorie + Fichiers -->
-        <div class="upload-col-left">
+      <button class="overlay-close-btn" id="closeUploadOverlayBtn">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="overlay-content upload-content">
+      <!-- COLONNE 1 (30%) - Catégorie + Fichiers en attente (scrollable interne) -->
+      <div class="upload-col-1">
+        <div class="upload-col-scroll">
           <div class="category-select">
             <h4><i class="fas fa-folder"></i> Choisir une catégorie</h4>
             <div class="category-radio-list" id="uploadCategoryList">
@@ -194,9 +197,11 @@
             </button>
           </div>
         </div>
+      </div>
 
-        <!-- COLONNE DROITE (70%) - Instructions + Détails -->
-        <div class="upload-col-right">
+      <!-- COLONNE 2 (30%) - Instructions (scrollable interne) -->
+      <div class="upload-col-2">
+        <div class="upload-col-scroll">
           <div class="instructions-box">
             <h4><i class="fas fa-info-circle"></i> Format du nom de fichier</h4>
             <div class="format-box">
@@ -206,38 +211,59 @@
               <strong>✨ Exemple :</strong>
               <code>19167122 F IPOTE fiche.pdf</code>
             </div>
-          </div>
-          
-          <div class="details-box" id="fileDetailsBox">
-            <h4><i class="fas fa-file-alt"></i> Détails du fichier</h4>
-            <div class="file-details-content" id="fileDetailsContent">
-              <p class="no-selection">Sélectionnez un fichier pour le modifier</p>
+            <div class="rules-box">
+              <strong>⚙️ Règles :</strong>
+              <ul>
+                <li>Matricule : 8 chiffres</li>
+                <li>Lettre : 1 majuscule (A-Z)</li>
+                <li>Nom : au moins 2 lettres (maj/min acceptées)</li>
+                <li>Désignation : texte libre</li>
+              </ul>
+            </div>
+            <div class="info-note">
+              <i class="fas fa-clock"></i> Les fichiers non validés expirent après 10 minutes
             </div>
           </div>
         </div>
       </div>
-      
-      <div class="overlay-footer">
-        <button class="overlay-close-footer" id="cancelUploadBtn">Annuler</button>
-        <button class="overlay-confirm-footer" id="confirmUploadBtn" disabled>Valider & Upload</button>
+
+      <!-- COLONNE 3 (40%) - Correction + Actions (scrollable interne) -->
+      <div class="upload-col-3">
+        <div class="upload-col-scroll">
+          <div class="correction-box" id="correctionBox">
+            <h4><i class="fas fa-edit"></i> Correction du fichier</h4>
+            <div class="correction-content" id="correctionContent">
+              <p class="no-selection">Sélectionnez un fichier pour le modifier</p>
+            </div>
+          </div>
+          
+          <div class="action-box">
+            <button class="btn-cancel-upload" id="cancelUploadBtn">Annuler</button>
+            <button class="btn-validate-upload" id="confirmUploadBtn" disabled>Valider & Upload</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
   <!-- ==================== OVERLAY CATÉGORIES ==================== -->
-  <div class="category-overlay hidden" id="categoryOverlay">
-    <div class="overlay-backdrop" id="categoryOverlayBackdrop"></div>
-    <div class="overlay-container category-container">
-      <div class="overlay-header">
-        <span class="overlay-title">Gestion des catégories</span>
-        <button class="overlay-close-btn" id="closeCategoryOverlayBtn">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      
-      <div class="overlay-content category-content">
-        <!-- COLONNE GAUCHE (30%) - Ajout + Liste -->
-        <div class="category-col-left">
+  <!-- ===== REMPLACER L'OVERLAY CATÉGORIES DANS index.html ===== -->
+<!-- ==================== OVERLAY CATÉGORIES (3 colonnes) ==================== -->
+<div class="category-overlay hidden" id="categoryOverlay">
+  <div class="overlay-backdrop" id="categoryOverlayBackdrop"></div>
+  <div class="overlay-container category-container">
+    <div class="overlay-header">
+      <span class="overlay-title">Gestion des catégories</span>
+      <button class="overlay-close-btn" id="closeCategoryOverlayBtn">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="overlay-content category-content">
+      <!-- COLONNE 1 (33%) - Ajouter une catégorie -->
+      <div class="category-col-1">
+        <div class="category-col-scroll">
           <div class="add-category-form">
             <h4><i class="fas fa-plus-circle"></i> Nouvelle catégorie</h4>
             <input type="text" id="newCategoryName" class="category-input" placeholder="Nom de la catégorie">
@@ -245,10 +271,15 @@
               <i class="fas fa-plus"></i> Ajouter
             </button>
           </div>
-          
+        </div>
+      </div>
+
+      <!-- COLONNE 2 (33%) - Gestion des catégories existantes -->
+      <div class="category-col-2">
+        <div class="category-col-scroll">
           <div class="existing-categories">
             <h4><i class="fas fa-list"></i> Catégories existantes</h4>
-            <div class="categories-checkbox-list scrollable" id="categoriesCheckboxList">
+            <div class="categories-checkbox-list" id="categoriesCheckboxList">
               <!-- Injecté par JS -->
             </div>
             <button class="btn-delete-categories" id="deleteCategoriesBtn" disabled>
@@ -256,9 +287,11 @@
             </button>
           </div>
         </div>
+      </div>
 
-        <!-- COLONNE DROITE (70%) - Instructions -->
-        <div class="category-col-right">
+      <!-- COLONNE 3 (34%) - Instructions -->
+      <div class="category-col-3">
+        <div class="category-col-scroll">
           <div class="instructions-box">
             <h4><i class="fas fa-info-circle"></i> Instructions</h4>
             <p>Les catégories permettent d'organiser vos fichiers par filière, type ou période.</p>
@@ -278,12 +311,13 @@
           </div>
         </div>
       </div>
-      
-      <div class="overlay-footer">
-        <button class="overlay-close-footer" id="closeCategoryFooterBtn">Fermer</button>
-      </div>
+    </div>
+    
+    <div class="overlay-footer">
+      <button class="overlay-close-footer" id="closeCategoryFooterBtn">Fermer</button>
     </div>
   </div>
+</div>
 
   <!-- ==================== OVERLAY APERÇU PDF ==================== -->
   <div class="file-overlay hidden" id="fileOverlay">
