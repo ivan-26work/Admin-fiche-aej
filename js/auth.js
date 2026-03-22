@@ -1,5 +1,5 @@
 // ===== auth.js =====
-// Version avec CODE SECRET + NOTIFICATIONS HEADER + SHAKE
+// Page authentification AEJ - Structure 70/30 avec mode nuit intégré
 
 (function() {
   // ---------------------------------------------
@@ -13,14 +13,12 @@
   // ---------------------------------------------
   let supabase = null;
   let currentMode = 'login';
-  let codeSecretUnique = 'ipote233@'; // Valeur par défaut (sera remplacée par la table)
+  let codeSecretUnique = null;
 
   // ---------------------------------------------
   // ÉLÉMENTS DOM
   // ---------------------------------------------
-  const header = document.querySelector('.header');
-  const logoCircle = document.querySelector('.logo-circle');
-  const siteName = document.querySelector('.site-name-3d');
+  const loadingOverlay = document.getElementById('loadingOverlay');
   const tabLogin = document.getElementById('tabLogin');
   const tabSignup = document.getElementById('tabSignup');
   const formLogin = document.getElementById('formLogin');
@@ -30,114 +28,77 @@
   const cancelReset = document.getElementById('cancelReset');
   const sendReset = document.getElementById('sendReset');
   const resetEmail = document.getElementById('resetEmail');
-  const resetCodeSecret = document.getElementById('resetCodeSecret');
+  
+  // Toggle password
+  const toggleLoginPassword = document.getElementById('toggleLoginPassword');
+  const toggleSignupPassword = document.getElementById('toggleSignupPassword');
+  const toggleSignupConfirm = document.getElementById('toggleSignupConfirm');
+  const loginPassword = document.getElementById('loginPassword');
+  const signupPassword = document.getElementById('signupPassword');
+  const signupConfirm = document.getElementById('signupConfirm');
 
   // ---------------------------------------------
-  // NOTIFICATION DANS LE HEADER
+  // NOTIFICATION
   // ---------------------------------------------
   function showNotification(message, type = 'info', duration = 3000) {
-    // Supprimer toute notification existante
-    const oldNotif = document.querySelector('.header-notification');
+    const oldNotif = document.querySelector('.temp-notification');
     if (oldNotif) oldNotif.remove();
 
-    // Créer la notification
     const notif = document.createElement('div');
-    notif.className = `header-notification ${type}`;
+    notif.className = `temp-notification ${type}`;
     notif.textContent = message;
-    notif.style.cssText = `
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      height: 45px;
-      border-radius: 45px;
-      background: white;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 20px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: #2c3e50;
-      border: 2px solid;
-      z-index: 1100;
-      white-space: nowrap;
-      animation: notif-appear 0.3s ease;
-    `;
+    document.body.appendChild(notif);
 
-    // Couleur selon type
-    if (type === 'error') {
-      notif.style.borderColor = '#ff7e9f';
-      notif.style.background = '#fff0f3';
-    } else if (type === 'success') {
-      notif.style.borderColor = '#4a90e2';
-      notif.style.background = '#e6f0ff';
-    } else {
-      notif.style.borderColor = '#6c7a8d';
-    }
-
-    // Ajouter au header
-    header.style.position = 'relative';
-    header.appendChild(notif);
-
-    // Animation de shake si erreur
-    if (type === 'error') {
-      shakeForm();
-    }
-
-    // Disparition automatique
     setTimeout(() => {
-      if (notif.parentNode) {
-        notif.style.animation = 'notif-disappear 0.3s ease forwards';
-        setTimeout(() => notif.remove(), 300);
-      }
+      notif.style.animation = 'notif-appear 0.3s ease reverse';
+      setTimeout(() => notif.remove(), 300);
     }, duration);
   }
-
-  // Style des animations (à ajouter dans le head)
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes notif-appear {
-      from { opacity: 0; transform: translate(-50%, -40%); }
-      to { opacity: 1; transform: translate(-50%, -50%); }
-    }
-    @keyframes notif-disappear {
-      from { opacity: 1; transform: translate(-50%, -50%); }
-      to { opacity: 0; transform: translate(-50%, -40%); }
-    }
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-      20%, 40%, 60%, 80% { transform: translateX(5px); }
-    }
-    .shake {
-      animation: shake 0.5s ease-in-out;
-    }
-  `;
-  document.head.appendChild(style);
 
   function shakeForm() {
     const activeForm = currentMode === 'login' ? formLogin : formSignup;
     if (activeForm) {
       activeForm.classList.add('shake');
       setTimeout(() => activeForm.classList.remove('shake'), 500);
-      
-      // Vibration si supportée
-      if (navigator.vibrate) {
-        navigator.vibrate([100, 50, 100]);
-      }
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
     }
   }
 
   // ---------------------------------------------
-  // CHARGEMENT DU CODE SECRET DEPUIS LA TABLE
+  // TOGGLE PASSWORD
+  // ---------------------------------------------
+  function setupTogglePassword() {
+    if (toggleLoginPassword && loginPassword) {
+      toggleLoginPassword.addEventListener('click', () => {
+        const type = loginPassword.type === 'password' ? 'text' : 'password';
+        loginPassword.type = type;
+        toggleLoginPassword.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+      });
+    }
+
+    if (toggleSignupPassword && signupPassword) {
+      toggleSignupPassword.addEventListener('click', () => {
+        const type = signupPassword.type === 'password' ? 'text' : 'password';
+        signupPassword.type = type;
+        toggleSignupPassword.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+      });
+    }
+
+    if (toggleSignupConfirm && signupConfirm) {
+      toggleSignupConfirm.addEventListener('click', () => {
+        const type = signupConfirm.type === 'password' ? 'text' : 'password';
+        signupConfirm.type = type;
+        toggleSignupConfirm.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+      });
+    }
+  }
+
+  // ---------------------------------------------
+  // CHARGEMENT DU CODE SECRET (sans affichage)
   // ---------------------------------------------
   async function loadCodeSecret() {
     if (!supabase) return;
-    
     try {
-      // Tentative de récupération depuis la table
       const { data, error } = await supabase
         .from('code_secret_unique')
         .select('code')
@@ -145,7 +106,7 @@
         .single();
       
       if (error) {
-        console.warn('Table code_secret_unique non trouvée, utilisation valeur par défaut');
+        console.warn('Table code_secret_unique non trouvée');
         return;
       }
       
@@ -158,9 +119,6 @@
     }
   }
 
-  // ---------------------------------------------
-  // VÉRIFICATION DU CODE SECRET
-  // ---------------------------------------------
   function verifierCodeSecret(codeSaisi) {
     return codeSaisi === codeSecretUnique;
   }
@@ -170,20 +128,35 @@
   // ---------------------------------------------
   async function init() {
     try {
+      loadingOverlay?.classList.remove('hidden');
       await waitForDom();
       await initSupabase();
-      await loadCodeSecret(); // Charger le code secret depuis la table
+      await loadCodeSecret();
       await checkExistingSession();
+      setupTogglePassword();
       setupEventListeners();
+      
+      // Appliquer le thème sauvegardé
+      applySavedTheme();
+      
     } catch (error) {
       console.warn('Mode démo - Supabase non disponible');
+      setupTogglePassword();
       setupEventListeners();
+    } finally {
+      setTimeout(() => loadingOverlay?.classList.add('hidden'), 500);
     }
   }
 
-  // ---------------------------------------------
-  // ATTENDRE QUE LE DOM SOIT PRÊT
-  // ---------------------------------------------
+  function applySavedTheme() {
+    const savedTheme = localStorage.getItem('aej_theme') || 'day';
+    if (savedTheme === 'night') {
+      document.body.classList.add('night-mode');
+    } else {
+      document.body.classList.remove('night-mode');
+    }
+  }
+
   function waitForDom() {
     return new Promise(resolve => {
       if (document.readyState === 'loading') {
@@ -194,9 +167,6 @@
     });
   }
 
-  // ---------------------------------------------
-  // INITIALISATION SUPABASE
-  // ---------------------------------------------
   async function initSupabase() {
     if (window.supabase && typeof window.supabase.createClient === 'function') {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -209,9 +179,6 @@
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
-  // ---------------------------------------------
-  // CHARGEMENT DYNAMIQUE SUPABASE
-  // ---------------------------------------------
   function loadSupabaseScript() {
     return new Promise((resolve, reject) => {
       if (document.querySelector('script[src*="supabase"]')) {
@@ -221,7 +188,7 @@
             resolve();
           }
         }, 50);
-        setTimeout(() => reject(new Error('Timeout chargement Supabase')), 5000);
+        setTimeout(() => reject(new Error('Timeout')), 5000);
         return;
       }
       const script = document.createElement('script');
@@ -232,9 +199,6 @@
     });
   }
 
-  // ---------------------------------------------
-  // VÉRIFICATION SESSION EXISTANTE
-  // ---------------------------------------------
   async function checkExistingSession() {
     if (!supabase) return;
     try {
@@ -248,46 +212,29 @@
   }
 
   // ---------------------------------------------
-  // INITIALISATION ÉCOUTEURS
+  // VALIDATIONS
   // ---------------------------------------------
-  function setupEventListeners() {
-    if (!tabLogin || !tabSignup || !formLogin || !formSignup) {
-      console.error('Éléments DOM manquants');
-      return;
-    }
+  function isValidEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  }
 
-    tabLogin.addEventListener('click', () => switchTab('login'));
-    tabSignup.addEventListener('click', () => switchTab('signup'));
+  // ---------------------------------------------
+  // GESTION ERREURS
+  // ---------------------------------------------
+  function showError(element, message) {
+    clearError(element);
+    const errorEl = document.createElement('div');
+    errorEl.className = 'error-message';
+    errorEl.textContent = message;
+    element.parentElement.appendChild(errorEl);
+    showNotification(message, 'error');
+    shakeForm();
+  }
 
-    formLogin.addEventListener('submit', handleLogin);
-    formSignup.addEventListener('submit', handleSignup);
-
-    if (forgotLink) {
-      forgotLink.addEventListener('click', openForgotModal);
-    }
-
-    if (cancelReset) {
-      cancelReset.addEventListener('click', closeForgotModal);
-    }
-
-    if (sendReset) {
-      sendReset.addEventListener('click', handlePasswordReset);
-    }
-
-    if (forgotModal) {
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
-          closeForgotModal();
-        }
-      });
-      forgotModal.addEventListener('click', (e) => {
-        if (e.target === forgotModal) {
-          closeForgotModal();
-        }
-      });
-    }
-
-    checkUrlParams();
+  function clearError(element) {
+    const errorEl = element.parentElement.querySelector('.error-message');
+    if (errorEl) errorEl.remove();
   }
 
   // ---------------------------------------------
@@ -309,49 +256,18 @@
   }
 
   // ---------------------------------------------
-  // VALIDATION EMAIL
-  // ---------------------------------------------
-  function isValidEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  }
-
-  // ---------------------------------------------
-  // GESTION ERREURS
-  // ---------------------------------------------
-  function showError(element, message) {
-    clearError(element);
-    const errorEl = document.createElement('div');
-    errorEl.className = 'error-message';
-    errorEl.textContent = message;
-    errorEl.style.color = '#ff7e9f';
-    errorEl.style.fontSize = '0.8rem';
-    errorEl.style.marginTop = '0.3rem';
-    errorEl.style.paddingLeft = '1rem';
-    element.parentElement.appendChild(errorEl);
-    
-    // Notification dans le header
-    showNotification(message, 'error');
-  }
-
-  function clearError(element) {
-    const errorEl = element.parentElement.querySelector('.error-message');
-    if (errorEl) errorEl.remove();
-  }
-
-  // ---------------------------------------------
-  // CONNEXION
+  // CONNEXION (avec code secret caché)
   // ---------------------------------------------
   async function handleLogin(e) {
     e.preventDefault();
 
     const email = document.getElementById('loginEmail');
     const password = document.getElementById('loginPassword');
-    const codeSecret = document.getElementById('loginCodeSecret');
 
-    if (!email || !password || !codeSecret) return;
+    if (!email || !password) return;
 
-    [email, password, codeSecret].forEach(field => clearError(field));
+    clearError(email);
+    clearError(password);
 
     let hasError = false;
 
@@ -368,14 +284,6 @@
       hasError = true;
     }
 
-    if (!codeSecret.value) {
-      showError(codeSecret, 'Code secret requis');
-      hasError = true;
-    } else if (!verifierCodeSecret(codeSecret.value)) {
-      showError(codeSecret, 'Code secret incorrect');
-      hasError = true;
-    }
-
     if (hasError) return;
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -384,27 +292,23 @@
     submitBtn.textContent = 'Connexion...';
 
     try {
-      if (supabase) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.value.trim(),
-          password: password.value
-        });
-
-        if (error) throw error;
-        
-        showNotification('Connexion réussie', 'success');
-        setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 500);
-      } else {
-        // Mode démo
-        setTimeout(() => {
-          showNotification('Mode démo: Connexion réussie', 'success');
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 500);
-        }, 1000);
+      // Vérifier le code secret (caché)
+      if (!codeSecretUnique) {
+        throw new Error('Code secret non disponible');
       }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.value.trim(),
+        password: password.value
+      });
+
+      if (error) throw error;
+      
+      showNotification('Connexion réussie', 'success');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 500);
+      
     } catch (error) {
       console.error('Erreur connexion:', error);
       showError(password, 'Email ou mot de passe incorrect');
@@ -422,12 +326,11 @@
     const firstname = document.getElementById('signupFirstname');
     const lastname = document.getElementById('signupLastname');
     const email = document.getElementById('signupEmail');
-    const codeSecret = document.getElementById('signupCodeSecret');
     const password = document.getElementById('signupPassword');
     const confirm = document.getElementById('signupConfirm');
     const terms = document.getElementById('acceptTerms');
 
-    [firstname, lastname, email, codeSecret, password, confirm].forEach(field => {
+    [firstname, lastname, email, password, confirm].forEach(field => {
       if (field) clearError(field);
     });
 
@@ -448,14 +351,6 @@
       hasError = true;
     } else if (email && !isValidEmail(email.value.trim())) {
       showError(email, 'Email invalide');
-      hasError = true;
-    }
-
-    if (codeSecret && !codeSecret.value) {
-      showError(codeSecret, 'Code secret requis');
-      hasError = true;
-    } else if (codeSecret && !verifierCodeSecret(codeSecret.value)) {
-      showError(codeSecret, 'Code secret incorrect');
       hasError = true;
     }
 
@@ -482,43 +377,32 @@
     submitBtn.textContent = 'Création...';
 
     try {
-      if (supabase) {
-        const { error } = await supabase.auth.signUp({
-          email: email.value.trim(),
-          password: password.value,
-          options: {
-            data: {
-              first_name: firstname?.value.trim() || '',
-              last_name: lastname?.value.trim() || ''
-            }
+      const { data, error } = await supabase.auth.signUp({
+        email: email.value.trim(),
+        password: password.value,
+        options: {
+          data: {
+            first_name: firstname?.value.trim() || '',
+            last_name: lastname?.value.trim() || ''
           }
-        });
+        }
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        showNotification('Compte créé ! Vérifiez vos emails', 'success');
-        
-        // Basculer vers l'onglet de connexion
-        setTimeout(() => {
-          switchTab('login');
-          const loginEmail = document.getElementById('loginEmail');
-          if (loginEmail && email) {
-            loginEmail.value = email.value.trim();
-          }
-        }, 1500);
-        
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-        
-      } else {
-        // Mode démo
-        setTimeout(() => {
-          showNotification('Mode démo: Inscription réussie', 'success');
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 500);
-        }, 1000);
-      }
+      showNotification('Compte créé ! Vérifiez vos emails', 'success');
+      
+      setTimeout(() => {
+        switchTab('login');
+        const loginEmail = document.getElementById('loginEmail');
+        if (loginEmail && email) {
+          loginEmail.value = email.value.trim();
+        }
+      }, 1500);
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+      
     } catch (error) {
       console.error('Erreur inscription:', error);
       if (email) showError(email, error.message || 'Erreur inscription');
@@ -528,7 +412,7 @@
   }
 
   // ---------------------------------------------
-  // MODALE RÉINITIALISATION
+  // RÉINITIALISATION MOT DE PASSE
   // ---------------------------------------------
   function openForgotModal(e) {
     e.preventDefault();
@@ -545,60 +429,38 @@
         resetEmail.value = '';
         clearError(resetEmail);
       }
-      if (resetCodeSecret) {
-        resetCodeSecret.value = '';
-        clearError(resetCodeSecret);
-      }
     }
   }
 
   async function handlePasswordReset() {
-    if (!resetEmail || !resetCodeSecret) return;
+    if (!resetEmail) return;
 
     clearError(resetEmail);
-    clearError(resetCodeSecret);
-
-    let hasError = false;
 
     if (!resetEmail.value.trim()) {
       showError(resetEmail, 'Email requis');
-      hasError = true;
-    } else if (!isValidEmail(resetEmail.value.trim())) {
+      return;
+    }
+
+    if (!isValidEmail(resetEmail.value.trim())) {
       showError(resetEmail, 'Email invalide');
-      hasError = true;
+      return;
     }
-
-    if (!resetCodeSecret.value) {
-      showError(resetCodeSecret, 'Code secret requis');
-      hasError = true;
-    } else if (!verifierCodeSecret(resetCodeSecret.value)) {
-      showError(resetCodeSecret, 'Code secret incorrect');
-      hasError = true;
-    }
-
-    if (hasError) return;
 
     const originalText = sendReset.textContent;
     sendReset.disabled = true;
     sendReset.textContent = 'Envoi...';
 
     try {
-      if (supabase) {
-        const { error } = await supabase.auth.resetPasswordForEmail(
-          resetEmail.value.trim()
-        );
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        resetEmail.value.trim()
+      );
 
-        if (error) throw error;
+      if (error) throw error;
 
-        showNotification('Email de réinitialisation envoyé', 'success');
-        setTimeout(() => closeForgotModal(), 1500);
-      } else {
-        // Mode démo
-        setTimeout(() => {
-          showNotification('Mode démo: Email envoyé', 'success');
-          setTimeout(() => closeForgotModal(), 1500);
-        }, 1000);
-      }
+      showNotification('Email de réinitialisation envoyé', 'success');
+      setTimeout(() => closeForgotModal(), 1500);
+      
     } catch (error) {
       console.error('Erreur:', error);
       showError(resetEmail, error.message || 'Erreur envoi');
@@ -616,6 +478,58 @@
     if (mode === 'login') switchTab('login');
     else if (mode === 'signup') switchTab('signup');
   }
+
+  // ---------------------------------------------
+  // ÉCOUTEURS
+  // ---------------------------------------------
+  function setupEventListeners() {
+    if (!tabLogin || !tabSignup || !formLogin || !formSignup) {
+      console.error('Éléments DOM manquants');
+      return;
+    }
+
+    tabLogin.addEventListener('click', () => switchTab('login'));
+    tabSignup.addEventListener('click', () => switchTab('signup'));
+
+    formLogin.addEventListener('submit', handleLogin);
+    formSignup.addEventListener('submit', handleSignup);
+
+    if (forgotLink) forgotLink.addEventListener('click', openForgotModal);
+    if (cancelReset) cancelReset.addEventListener('click', closeForgotModal);
+    if (sendReset) sendReset.addEventListener('click', handlePasswordReset);
+
+    if (forgotModal) {
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
+          closeForgotModal();
+        }
+      });
+      forgotModal.addEventListener('click', (e) => {
+        if (e.target === forgotModal) closeForgotModal();
+      });
+    }
+
+    checkUrlParams();
+    
+    // Écouter les changements de thème pour synchronisation
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'aej_theme') {
+        applySavedTheme();
+      }
+    });
+  }
+
+  // Style pour animations
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    .shake { animation: shake 0.5s ease-in-out; }
+  `;
+  document.head.appendChild(style);
 
   // ---------------------------------------------
   // DÉMARRAGE
