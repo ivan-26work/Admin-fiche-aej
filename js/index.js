@@ -1,16 +1,16 @@
 // ===== index.js =====
-// Version AEJ Desktop - COMPLÈTE avec toutes les fonctionnalités
-// Structure claire, fonctions nommées, code commenté
+// Version AEJ Desktop - Corrigée (pas de boucle infinie)
 
 (function() {
-  // =============================================
-  // 1. CONFIGURATION ET ÉTAT INITIAL
-  // =============================================
-  
+  // ---------------------------------------------
+  // CONFIGURATION
+  // ---------------------------------------------
   const SUPABASE_URL = 'https://lnwrwvwunwsqeuluupis.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud3J3dnd1bndzcWV1bHV1cGlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjU2ODYsImV4cCI6MjA4OTM0MTY4Nn0.gfnPMtR3mNBFMTo3GtZ9t1A9_8gxEHY4loLgLdLJxLs';
 
-  // État global
+  // ---------------------------------------------
+  // ÉTAT INTERNE
+  // ---------------------------------------------
   let supabase = null;
   let currentUser = null;
   let allFiles = [];
@@ -19,6 +19,7 @@
   let selectedDates = new Set();
   let searchTimeout = null;
   let currentPreviewFile = null;
+  let previewEditMode = false;
   
   // État multi-sélection
   let selectionMode = false;
@@ -30,21 +31,28 @@
   let uploadTimer = null;
   let timerInterval = null;
   let uploadExpirationTime = null;
+  let currentEditingFileIndex = null;
 
-  // =============================================
-  // 2. RÉFÉRENCES DOM
-  // =============================================
-  
-  // Header
+  // ---------------------------------------------
+  // ÉLÉMENTS DOM
+  // ---------------------------------------------
   const loadingOverlay = document.getElementById('loadingOverlay');
-  const settingsBtn = document.getElementById('settingsBtn');
-  
-  // Colonne gauche
+  const syncLoader = document.getElementById('syncLoader');
+  const deleteLoader = document.getElementById('deleteLoader');
   const searchInput = document.getElementById('searchInput');
   const searchNom = document.getElementById('searchNom');
   const searchMatricule = document.getElementById('searchMatricule');
   const searchCategorie = document.getElementById('searchCategorie');
   const searchDate = document.getElementById('searchDate');
+  
+  // Barre d'actions
+  const selectModeBtn = document.getElementById('selectModeBtn');
+  const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+  const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+  const cancelSelectBtn = document.getElementById('cancelSelectBtn');
+  const selectCountSpan = document.getElementById('selectCount');
+  
+  // Colonne gauche
   const categoriesList = document.getElementById('categoriesList');
   const statsFichiers = document.getElementById('statsFichiers');
   const statsCategories = document.getElementById('statsCategories');
@@ -56,11 +64,6 @@
   // Colonne droite
   const filtersRow = document.getElementById('filtersRow');
   const filesContainer = document.getElementById('filesContainer');
-  const selectModeBtn = document.getElementById('selectModeBtn');
-  const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
-  const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-  const cancelSelectBtn = document.getElementById('cancelSelectBtn');
-  const selectCountSpan = document.getElementById('selectCount');
   const uploadBtn = document.getElementById('uploadBtn');
   
   // Overlay upload
@@ -73,7 +76,7 @@
   const pendingFilesList = document.getElementById('pendingFilesList');
   const addFilesToUploadBtn = document.getElementById('addFilesToUploadBtn');
   const uploadTimerDisplay = document.getElementById('uploadTimer');
-  const fileDetailsContent = document.getElementById('fileDetailsContent');
+  const correctionContent = document.getElementById('correctionContent');
   
   // Overlay catégories
   const categoryOverlay = document.getElementById('categoryOverlay');
@@ -104,27 +107,52 @@
   const previewDownloadBtn = document.getElementById('previewDownloadBtn');
   const previewDeleteBtn = document.getElementById('previewDeleteBtn');
   const previewFullscreenBtn = document.getElementById('previewFullscreenBtn');
-  
-  // Loaders
-  const syncLoader = document.getElementById('syncLoader');
-  const deleteLoader = document.getElementById('deleteLoader');
 
-  // =============================================
-  // 3. INITIALISATION
-  // =============================================
-  
+  // ---------------------------------------------
+  // INITIALISATION
+  // ---------------------------------------------
   async function init() {
     try {
+      loadingOverlay?.classList.remove('hidden');
       await initSupabase();
-      await checkSession();
+      
+      const isLoggedIn = await checkSession();
+      if (!isLoggedIn) {
+        // Ne redirige que si pas d'utilisateur et pas déjà sur auth
+        if (!window.location.pathname.includes('auth.html')) {
+          window.location.href = 'auth.html';
+        }
+        return;
+      }
+      
+      await loadUserData();
       setupEventListeners();
       startStorageMonitoring();
+      
+      // Écouter les changements de thème pour synchronisation
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'aej_theme') {
+          applyThemeFromStorage();
+        }
+      });
+      
     } catch (error) {
       console.error('Erreur initialisation:', error);
       showNotification('Erreur de chargement', 'error');
+    } finally {
+      setTimeout(() => loadingOverlay?.classList.add('hidden'), 500);
     }
   }
-  
+
+  function applyThemeFromStorage() {
+    const savedTheme = localStorage.getItem('aej_theme') || 'day';
+    if (savedTheme === 'night') {
+      document.body.classList.add('night-mode');
+    } else {
+      document.body.classList.remove('night-mode');
+    }
+  }
+
   async function initSupabase() {
     if (window.supabase?.createClient) {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -133,7 +161,7 @@
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   }
-  
+
   function loadScript() {
     return new Promise(resolve => {
       const script = document.createElement('script');
@@ -142,29 +170,21 @@
       document.head.appendChild(script);
     });
   }
-  
+
   async function checkSession() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = 'auth.html';
-        return;
-      }
+      if (!user) return false;
       currentUser = user;
-      await loadUserData();
+      return true;
     } catch (error) {
       console.error('Erreur session:', error);
-      window.location.href = 'auth.html';
+      return false;
     }
   }
-  
-  // =============================================
-  // 4. CHARGEMENT DES DONNÉES
-  // =============================================
-  
+
   async function loadUserData() {
     try {
-      loadingOverlay?.classList.remove('hidden');
       await Promise.all([
         loadCategories(),
         loadFiles(),
@@ -175,11 +195,9 @@
     } catch (error) {
       console.error('Erreur chargement:', error);
       showNotification('Erreur chargement des données', 'error');
-    } finally {
-      setTimeout(() => loadingOverlay?.classList.add('hidden'), 500);
     }
   }
-  
+
   async function loadCategories() {
     const { data, error } = await supabase
       .from('dossiers')
@@ -190,7 +208,7 @@
     if (!error) categories = data || [];
     if (statsCategories) statsCategories.textContent = categories.length;
   }
-  
+
   async function loadFiles() {
     const { data: filesData, error: filesError } = await supabase
       .from('fichiers')
@@ -210,7 +228,7 @@
     allFiles = filesData.map(file => ({ ...file, categorie_id: liaisonsMap[file.id] || null }));
     if (statsFichiers) statsFichiers.textContent = allFiles.length;
   }
-  
+
   async function loadTelechargementsStats() {
     try {
       const { data } = await supabase.from('telechargements').select('*');
@@ -219,7 +237,7 @@
       if (statsTelechargements) statsTelechargements.textContent = '0';
     }
   }
-  
+
   async function loadStorageStats() {
     try {
       const { data } = await supabase.storage.from('fichiers').list();
@@ -228,7 +246,6 @@
         if (file.metadata?.size) totalSize += file.metadata.size;
       }
       const totalMo = (totalSize / (1024 * 1024)).toFixed(1);
-      const maxMo = 1024; // 1 Go
       const percent = (totalSize / (1024 * 1024 * 1024)) * 100;
       if (storageUsageSpan) storageUsageSpan.textContent = `${totalMo} Mo / 1 Go`;
       if (storageProgressBar) storageProgressBar.style.width = `${Math.min(percent, 100)}%`;
@@ -240,17 +257,16 @@
       console.warn('Erreur calcul stockage:', e);
     }
   }
-  
-  // =============================================
-  // 5. MISE À JOUR DE L'INTERFACE
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // MISE À JOUR UI
+  // ---------------------------------------------
   function updateUI() {
     updateCategoriesUI();
     updateFiltersUI();
     renderFiles();
   }
-  
+
   function updateCategoriesUI() {
     if (!categoriesList) return;
     const fileCount = {};
@@ -266,12 +282,8 @@
     categoriesList.innerHTML = html;
     
     document.getElementById('catAll')?.addEventListener('change', e => {
-      if (e.target.checked) {
-        selectedCategories.clear();
-        selectedCategories.add('all');
-      } else {
-        selectedCategories.delete('all');
-      }
+      if (e.target.checked) { selectedCategories.clear(); selectedCategories.add('all'); }
+      else { selectedCategories.delete('all'); }
       updateCategoriesUI();
       renderFiles();
     });
@@ -296,7 +308,7 @@
       });
     });
   }
-  
+
   function updateFiltersUI() {
     if (!filtersRow) return;
     const filesByDate = {};
@@ -326,21 +338,17 @@
       });
     });
   }
-  
+
   function getFilteredFiles() {
     let filtered = [...allFiles];
     
-    // Filtre catégories
     if (!selectedCategories.has('all') && selectedCategories.size > 0) {
       filtered = filtered.filter(f => f.categorie_id && selectedCategories.has(f.categorie_id));
     }
-    
-    // Filtre dates
     if (selectedDates.size > 0) {
       filtered = filtered.filter(f => selectedDates.has(formatDateKey(f.date_upload)));
     }
     
-    // Recherche avancée
     const term = searchInput?.value.toLowerCase().trim();
     if (term) {
       filtered = filtered.filter(f => {
@@ -355,10 +363,9 @@
         return false;
       });
     }
-    
     return filtered;
   }
-  
+
   function renderFiles() {
     if (!filesContainer) return;
     const filtered = getFilteredFiles();
@@ -404,7 +411,7 @@
     filesContainer.innerHTML = html;
     attachFileEvents();
   }
-  
+
   function attachFileEvents() {
     document.querySelectorAll('.file-item').forEach(item => {
       const id = item.dataset.id;
@@ -454,17 +461,16 @@
       });
     });
   }
-  
-  // =============================================
-  // 6. SÉLECTION MULTIPLE
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // SÉLECTION MULTIPLE
+  // ---------------------------------------------
   function toggleFileSelection(id, checked) {
     if (checked) selectedFiles.add(id);
     else selectedFiles.delete(id);
     updateSelectionUI();
   }
-  
+
   function updateSelectionUI() {
     const count = selectedFiles.size;
     if (count === 0) {
@@ -490,7 +496,7 @@
       if (cb) cb.checked = selectedFiles.has(id);
     });
   }
-  
+
   function toggleSelectionMode() {
     selectionMode = !selectionMode;
     if (!selectionMode) {
@@ -503,11 +509,10 @@
     });
     updateSelectionUI();
   }
-  
-  // =============================================
-  // 7. TÉLÉCHARGEMENT ET SUPPRESSION
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // TÉLÉCHARGEMENT ET SUPPRESSION
+  // ---------------------------------------------
   async function downloadFile(file) {
     try {
       const { data: urlData } = supabase.storage.from(file.bucket || 'fichiers').getPublicUrl(file.chemin_storage);
@@ -520,14 +525,14 @@
       showNotification('Erreur téléchargement', 'error');
     }
   }
-  
+
   async function downloadSelected() {
     const filesToDownload = allFiles.filter(f => selectedFiles.has(f.id));
     for (const file of filesToDownload) await downloadFile(file);
     toggleSelectionMode();
     showNotification(`${filesToDownload.length} fichier(s) téléchargé(s)`, 'success');
   }
-  
+
   async function confirmDeleteFile(file) {
     if (!confirm(`Supprimer définitivement "${file.nom}" ?`)) return;
     showDeleteLoader(file.nom);
@@ -544,7 +549,7 @@
       hideDeleteLoader();
     }
   }
-  
+
   async function deleteSelected() {
     const filesToDelete = allFiles.filter(f => selectedFiles.has(f.id));
     if (!filesToDelete.length) return;
@@ -561,20 +566,19 @@
     showNotification(`${filesToDelete.length} fichier(s) supprimé(s)`, 'success');
     hideDeleteLoader();
   }
-  
-  // =============================================
-  // 8. OVERLAY CATÉGORIES
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // OVERLAY CATÉGORIES
+  // ---------------------------------------------
   function openCategoryOverlay() {
     categoryOverlay.classList.remove('hidden');
     renderCategoriesCheckboxList();
   }
-  
+
   function closeCategoryOverlay() {
     categoryOverlay.classList.add('hidden');
   }
-  
+
   function renderCategoriesCheckboxList() {
     if (!categoriesCheckboxList) return;
     let html = '';
@@ -590,7 +594,7 @@
     }));
     deleteCategoriesBtn.disabled = true;
   }
-  
+
   async function createCategory() {
     const nom = newCategoryName?.value.trim();
     if (!nom) { showNotification('Entrez un nom', 'error'); return; }
@@ -608,7 +612,7 @@
       renderCategoriesCheckboxList();
     } catch (e) { showNotification('Erreur création', 'error'); }
   }
-  
+
   async function deleteSelectedCategories() {
     const selected = Array.from(categoriesCheckboxList.querySelectorAll('input:checked')).map(cb => cb.value);
     if (!selected.length) return;
@@ -631,23 +635,22 @@
     showNotification('Suppression terminée', 'success');
     hideDeleteLoader();
   }
-  
-  // =============================================
-  // 9. OVERLAY UPLOAD (avec table attente)
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // OVERLAY UPLOAD
+  // ---------------------------------------------
   function openUploadOverlay() {
     renderCategoryRadioList();
     renderPendingFilesList();
     startUploadTimer();
     uploadOverlay.classList.remove('hidden');
   }
-  
+
   function closeUploadOverlay() {
     uploadOverlay.classList.add('hidden');
     stopUploadTimer();
   }
-  
+
   function renderCategoryRadioList() {
     if (!uploadCategoryList) return;
     let html = '';
@@ -662,12 +665,11 @@
       });
     });
   }
-  
+
   function renderPendingFilesList() {
     if (!pendingFilesList) return;
     if (!pendingFiles.length) {
       pendingFilesList.innerHTML = '<p class="empty-pending">Aucun fichier en attente</p>';
-      if (fileDetailsContent) fileDetailsContent.innerHTML = '<p class="no-selection">Sélectionnez un fichier pour le modifier</p>';
       return;
     }
     let html = '';
@@ -679,7 +681,7 @@
       if (!isValid) { statusClass = 'error'; statusText = '⚠️ Format invalide'; }
       if (isDuplicate) { statusClass = 'duplicate'; statusText = '⚠️ Doublon'; }
       html += `
-        <div class="pending-file-item" data-index="${idx}">
+        <div class="pending-file-item ${currentEditingFileIndex === idx ? 'selected' : ''}" data-index="${idx}">
           <span class="pending-file-name">${escapeHtml(file.name)}</span>
           <span class="pending-file-status ${statusClass}">${statusText}</span>
         </div>
@@ -694,10 +696,18 @@
       });
     });
   }
-  
+
   function selectPendingFile(index) {
+    currentEditingFileIndex = index;
     const file = pendingFiles[index];
     if (!file) return;
+    
+    renderPendingFilesList();
+    renderCorrectionEditor(file, index);
+  }
+
+  function renderCorrectionEditor(file, index) {
+    if (!correctionContent) return;
     
     const { matricule, nom, prenom, designation } = extraireMetadonnees(file.name);
     const isValid = validerNomFichier(file.name);
@@ -733,7 +743,7 @@
           <p class="warning-text">⚠️ Ce fichier existe déjà dans la base</p>
           <div class="editor-actions">
             <button class="btn-apply" id="replaceDuplicateBtn">🔄 Remplacer l'ancien</button>
-            <button class="btn-ignore" id="ignoreDuplicateBtn">❌ Ignorer ce fichier</button>
+            <button class="btn-ignore" id="ignoreDuplicateBtn">❌ Ignorer</button>
           </div>
         </div>
       `;
@@ -746,7 +756,7 @@
       `;
     }
     
-    if (fileDetailsContent) fileDetailsContent.innerHTML = editorHtml;
+    correctionContent.innerHTML = editorHtml;
     
     if (!isValid) {
       document.getElementById('applyCorrectionBtn')?.addEventListener('click', () => applyCorrection(index));
@@ -757,15 +767,11 @@
       document.getElementById('ignoreDuplicateBtn')?.addEventListener('click', () => ignoreFile(index));
     }
     
-    const editMatricule = document.getElementById('editMatricule');
-    const editNom = document.getElementById('editNom');
-    const editPrenom = document.getElementById('editPrenom');
-    const editDesignation = document.getElementById('editDesignation');
     const updatePreview = () => {
-      const newMat = editMatricule?.value || '';
-      const newNom = editNom?.value || '';
-      const newPrenom = editPrenom?.value || '';
-      const newDesignation = editDesignation?.value || '';
+      const newMat = document.getElementById('editMatricule')?.value || '';
+      const newNom = document.getElementById('editNom')?.value || '';
+      const newPrenom = document.getElementById('editPrenom')?.value || '';
+      const newDesignation = document.getElementById('editDesignation')?.value || '';
       const newFinal = `${newMat} ${newNom} ${newPrenom} ${newDesignation}.pdf`.replace(/\s+/g, ' ').trim();
       const previewDiv = document.querySelector('.nom-final');
       if (previewDiv) {
@@ -774,12 +780,13 @@
         previewDiv.className = `nom-final ${newIsValid ? 'valid' : 'invalid'}`;
       }
     };
-    editMatricule?.addEventListener('input', updatePreview);
-    editNom?.addEventListener('input', updatePreview);
-    editPrenom?.addEventListener('input', updatePreview);
-    editDesignation?.addEventListener('input', updatePreview);
+    
+    document.getElementById('editMatricule')?.addEventListener('input', updatePreview);
+    document.getElementById('editNom')?.addEventListener('input', updatePreview);
+    document.getElementById('editPrenom')?.addEventListener('input', updatePreview);
+    document.getElementById('editDesignation')?.addEventListener('input', updatePreview);
   }
-  
+
   function applyCorrection(index) {
     const newMat = document.getElementById('editMatricule')?.value || '';
     const newNom = document.getElementById('editNom')?.value || '';
@@ -799,14 +806,15 @@
     renderPendingFilesList();
     showNotification('Correction appliquée', 'success');
   }
-  
+
   function ignoreFile(index) {
     pendingFiles.splice(index, 1);
+    currentEditingFileIndex = null;
     renderPendingFilesList();
-    if (fileDetailsContent) fileDetailsContent.innerHTML = '<p class="no-selection">Sélectionnez un fichier pour le modifier</p>';
+    if (correctionContent) correctionContent.innerHTML = '<p class="no-selection">Sélectionnez un fichier pour le modifier</p>';
     showNotification('Fichier ignoré', 'info');
   }
-  
+
   async function replaceDuplicate(index) {
     const file = pendingFiles[index];
     const { matricule } = extraireMetadonnees(file.name);
@@ -826,7 +834,7 @@
     showNotification('Ancien fichier supprimé, prêt à uploader', 'success');
     renderPendingFilesList();
   }
-  
+
   function validerNomFichier(nom) {
     const base = nom.replace(/\.pdf$/i, '');
     const parties = base.split(' ');
@@ -839,7 +847,7 @@
     if (nomPart.length < 2) return false;
     return true;
   }
-  
+
   async function addFilesToUpload() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -868,24 +876,25 @@
     };
     input.click();
   }
-  
+
   function updateConfirmButton() {
     confirmUploadBtn.disabled = !selectedCategoryId || pendingFiles.length === 0;
   }
-  
+
   function startUploadTimer() {
     if (timerInterval) clearInterval(timerInterval);
     uploadExpirationTime = Date.now() + 10 * 60 * 1000;
     updateTimerDisplay();
     timerInterval = setInterval(updateTimerDisplay, 1000);
   }
-  
+
   function updateTimerDisplay() {
     if (!uploadTimerDisplay) return;
     const remaining = Math.max(0, uploadExpirationTime - Date.now());
     const minutes = Math.floor(remaining / 60000);
     const seconds = Math.floor((remaining % 60000) / 1000);
-    uploadTimerDisplay.querySelector('span').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const timeSpan = uploadTimerDisplay.querySelector('span');
+    if (timeSpan) timeSpan.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     if (remaining <= 0) {
       stopUploadTimer();
       cleanupExpiredFiles();
@@ -893,20 +902,17 @@
       showNotification('Temps expiré, fichiers supprimés', 'error');
     }
   }
-  
+
   function stopUploadTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = null;
   }
-  
+
   async function cleanupExpiredFiles() {
-    for (const file of pendingFiles) {
-      if (file._uploaded) continue;
-    }
     pendingFiles = [];
     renderPendingFilesList();
   }
-  
+
   async function uploadFiles() {
     if (!selectedCategoryId || !pendingFiles.length) return;
     
@@ -952,7 +958,6 @@
           fichier_id: newFile.id
         });
         success++;
-        file._uploaded = true;
       } catch (e) {
         console.error('Upload error:', e);
         errors++;
@@ -969,11 +974,10 @@
     selectedCategoryId = null;
     showNotification(`${success} fichier(s) uploadé(s), ${errors} erreur(s)`, success > 0 ? 'success' : 'error');
   }
-  
-  // =============================================
-  // 10. OVERLAY APERÇU PDF
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // OVERLAY APERÇU PDF
+  // ---------------------------------------------
   function openFilePreview(file) {
     currentPreviewFile = file;
     const { publicUrl } = supabase.storage.from(file.bucket || 'fichiers').getPublicUrl(file.chemin_storage).data;
@@ -1002,19 +1006,19 @@
     fileOverlay.classList.remove('hidden');
     setMetadataReadOnly(true);
   }
-  
+
   function setMetadataReadOnly(readonly) {
     previewMatricule.readOnly = readonly;
     previewNom.readOnly = readonly;
     previewPrenom.readOnly = readonly;
     previewDesignation.readOnly = readonly;
-    saveMetadataBtn.style.display = readonly ? 'none' : 'flex';
+    if (saveMetadataBtn) saveMetadataBtn.style.display = readonly ? 'none' : 'flex';
   }
-  
+
   function enableMetadataEdit() {
     setMetadataReadOnly(false);
   }
-  
+
   async function saveMetadata() {
     if (!currentPreviewFile) return;
     const newMat = previewMatricule.value.trim();
@@ -1045,17 +1049,16 @@
       showNotification('Erreur sauvegarde', 'error');
     }
   }
-  
+
   function closeFilePreview() {
     fileOverlay.classList.add('hidden');
     pdfIframe.src = '';
     currentPreviewFile = null;
   }
-  
-  // =============================================
-  // 11. UTILITAIRES
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // UTILITAIRES
+  // ---------------------------------------------
   function extraireMetadonnees(nom) {
     const base = nom.replace(/\.pdf$/i, '');
     const parties = base.split(' ');
@@ -1069,29 +1072,29 @@
       designation: parties[parties.length - 1] || ''
     };
   }
-  
+
   function formatFileSize(bytes) {
     if (!bytes) return '?';
     const units = ['o', 'Ko', 'Mo'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
   }
-  
+
   function formatDateKey(date) {
     const d = new Date(date);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   }
-  
+
   function formatDateDisplay(date) {
     const d = new Date(date);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
-  
+
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
   }
-  
+
   function showNotification(message, type = 'info') {
     const notif = document.createElement('div');
     notif.className = `temp-notification ${type}`;
@@ -1099,47 +1102,46 @@
     document.body.appendChild(notif);
     setTimeout(() => { notif.style.opacity = '0'; setTimeout(() => notif.remove(), 300); }, 3000);
   }
-  
+
   function showSyncLoader(total) {
     syncLoader.classList.remove('hidden');
     updateSyncLoader(0, total);
   }
-  
+
   function updateSyncLoader(current, total) {
     const count = syncLoader.querySelector('.sync-count');
     if (count) count.textContent = `${current}/${total}`;
   }
-  
+
   function hideSyncLoader() {
     syncLoader.classList.add('hidden');
   }
-  
+
   function showDeleteLoader(msg) {
     const text = deleteLoader.querySelector('.delete-loader-text');
     if (text) text.textContent = `Suppression ${msg}...`;
     deleteLoader.classList.remove('hidden');
   }
-  
+
   function hideDeleteLoader() {
     deleteLoader.classList.add('hidden');
   }
-  
+
   function startStorageMonitoring() {
     setInterval(() => loadStorageStats(), 60000);
   }
-  
-  // =============================================
-  // 12. ÉCOUTEURS D'ÉVÉNEMENTS
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // ÉCOUTEURS D'ÉVÉNEMENTS
+  // ---------------------------------------------
   function setupEventListeners() {
-    settingsBtn?.addEventListener('click', () => window.location.href = 'para.html');
     uploadBtn?.addEventListener('click', openUploadOverlay);
     selectModeBtn?.addEventListener('click', toggleSelectionMode);
     downloadSelectedBtn?.addEventListener('click', downloadSelected);
     deleteSelectedBtn?.addEventListener('click', deleteSelected);
     cancelSelectBtn?.addEventListener('click', toggleSelectionMode);
     searchInput?.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(renderFiles, 300); });
+    
     addFilesToUploadBtn?.addEventListener('click', addFilesToUpload);
     confirmUploadBtn?.addEventListener('click', uploadFiles);
     closeUploadOverlayBtn?.addEventListener('click', closeUploadOverlay);
@@ -1170,11 +1172,19 @@
     editButtons.forEach(btn => btn.addEventListener('click', enableMetadataEdit));
     
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fileOverlay.classList.contains('hidden')) closeFilePreview(); });
+    
+    // Synchronisation mode nuit avec les onglets
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'aej_theme') {
+        applyThemeFromStorage();
+      }
+    });
+    
+    applyThemeFromStorage();
   }
-  
-  // =============================================
-  // 13. DÉMARRAGE
-  // =============================================
-  
+
+  // ---------------------------------------------
+  // DÉMARRAGE
+  // ---------------------------------------------
   init();
 })();
