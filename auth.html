@@ -14,144 +14,190 @@
   <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
-  <!-- HEADER FIXE (hauteur 50px) -->
+  <!-- LOADER INITIAL -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-title">AEJ</div>
+    </div>
+  </div>
+
+  <!-- HEADER COMMUN -->
   <header class="header">
-    <a href="index.html" class="logo-circle" aria-label="AEJ">
-      <img src="assets/logo.png" alt="Logo AEJ">
-    </a>
-    <span class="site-name-3d">AEJ</span>
+    <div class="header-left">
+      <a href="index.html" class="logo-circle" aria-label="AEJ">
+        <img src="assets/logo.png" alt="Logo AEJ" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'url(%23g)\'/%3E%3Cdefs%3E%3ClinearGradient id=\'g\' x1=\'0%25\' y1=\'0%25\' x2=\'100%25\' y2=\'100%25\'%3E%3Cstop offset=\'0%25\' stop-color=\'%234a90e2\'/%3E%3Cstop offset=\'100%25\' stop-color=\'%23ff7e9f\'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x=\'50\' y=\'70\' font-size=\'50\' text-anchor=\'middle\' fill=\'white\' font-family=\'Arial\'%3EAEJ%3C/text%3E%3C/svg%3E';">
+      </a>
+      <span class="site-name">AEJ</span>
+    </div>
   </header>
 
-  <!-- CONTENU PRINCIPAL -->
-  <main class="main-content">
-    <!-- CARTE AUTH NÉOMORPHIQUE -->
-    <div class="auth-card">
-      <!-- ONGLETS -->
-      <div class="auth-tabs">
-        <button class="tab-btn active" id="tabLogin">Connexion</button>
-        <button class="tab-btn" id="tabSignup">Inscription</button>
-      </div>
-
-      <!-- FORMULAIRE CONNEXION -->
-      <form class="auth-form" id="formLogin" novalidate>
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-envelope"></i>
-            <input type="email" placeholder="Email" id="loginEmail" required>
-          </div>
+  <!-- CONTENU PRINCIPAL 70/30 -->
+  <main class="auth-dashboard">
+    <!-- COLONNE DROITE (70%) - Formulaire -->
+    <section class="auth-col-right">
+      <div class="auth-card">
+        <!-- ONGLETS -->
+        <div class="auth-tabs">
+          <button class="tab-btn active" id="tabLogin">Connexion</button>
+          <button class="tab-btn" id="tabSignup">Inscription</button>
         </div>
 
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-lock"></i>
-            <input type="password" placeholder="Mot de passe" id="loginPassword" required>
-          </div>
-        </div>
-
-        <!-- Champ Code Secret pour la connexion -->
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-key"></i>
-            <input type="text" placeholder="Code secret" id="loginCodeSecret" required>
-          </div>
-        </div>
-
-        <div class="form-options">
-          <label class="checkbox-label">
-            <input type="checkbox" checked> Se souvenir de moi
-          </label>
-          <a href="#" class="forgot-link" id="forgotPassword">Mot de passe oublié ?</a>
-        </div>
-
-        <button type="submit" class="btn-submit" id="btnLogin">Se connecter</button>
-      </form>
-
-      <!-- FORMULAIRE INSCRIPTION -->
-      <form class="auth-form hidden" id="formSignup" novalidate>
-        <!-- Prénom et Nom côte à côte -->
-        <div class="form-row">
-          <div class="form-group half">
-            <div class="input-icon">
-              <i class="fas fa-user"></i>
-              <input type="text" placeholder="Prénom" id="signupFirstname" required>
-            </div>
-          </div>
-          <div class="form-group half">
-            <div class="input-icon">
-              <i class="fas fa-user"></i>
-              <input type="text" placeholder="Nom" id="signupLastname" required>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-envelope"></i>
-            <input type="email" placeholder="Email" id="signupEmail" required>
-          </div>
-        </div>
-
-        <!-- Champ Code Secret pour l'inscription -->
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-key"></i>
-            <input type="text" placeholder="Code secret" id="signupCodeSecret" required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-lock"></i>
-            <input type="password" placeholder="Mot de passe" id="signupPassword" required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div class="input-icon">
-            <i class="fas fa-lock"></i>
-            <input type="password" placeholder="Confirmer mot de passe" id="signupConfirm" required>
-          </div>
-        </div>
-
-        <div class="form-options">
-          <label class="checkbox-label">
-            <input type="checkbox" id="acceptTerms" required> J'accepte les conditions d'utilisation
-          </label>
-        </div>
-
-        <button type="submit" class="btn-submit" id="btnSignup">Créer mon compte</button>
-      </form>
-
-      <!-- MODALE RÉINITIALISATION (avec champ code secret) -->
-      <div class="modal hidden" id="forgotModal">
-        <div class="modal-content">
-          <h3>Réinitialisation mot de passe</h3>
-          <p>Entrez votre email et le code secret</p>
+        <!-- FORMULAIRE CONNEXION -->
+        <form class="auth-form" id="formLogin" novalidate>
           <div class="form-group">
             <div class="input-icon">
               <i class="fas fa-envelope"></i>
-              <input type="email" placeholder="Votre email" id="resetEmail">
+              <input type="email" placeholder="Email" id="loginEmail" required>
             </div>
           </div>
-          
-          <!-- Champ Code Secret pour la réinitialisation -->
+
           <div class="form-group">
             <div class="input-icon">
-              <i class="fas fa-key"></i>
-              <input type="text" placeholder="Code secret" id="resetCodeSecret">
+              <i class="fas fa-lock"></i>
+              <input type="password" placeholder="Mot de passe" id="loginPassword" required>
+            </div>
+            <button type="button" class="toggle-password" id="toggleLoginPassword" tabindex="-1">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+
+          <div class="form-options">
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Se souvenir de moi
+            </label>
+            <a href="#" class="forgot-link" id="forgotPassword">Mot de passe oublié ?</a>
+          </div>
+
+          <button type="submit" class="btn-submit" id="btnLogin">Se connecter</button>
+        </form>
+
+        <!-- FORMULAIRE INSCRIPTION -->
+        <form class="auth-form hidden" id="formSignup" novalidate>
+          <div class="form-row">
+            <div class="form-group half">
+              <div class="input-icon">
+                <i class="fas fa-user"></i>
+                <input type="text" placeholder="Prénom" id="signupFirstname" required>
+              </div>
+            </div>
+            <div class="form-group half">
+              <div class="input-icon">
+                <i class="fas fa-user"></i>
+                <input type="text" placeholder="Nom" id="signupLastname" required>
+              </div>
             </div>
           </div>
-          
-          <div class="modal-buttons">
-            <button class="btn-modal btn-cancel" id="cancelReset">Annuler</button>
-            <button class="btn-modal btn-send" id="sendReset">Envoyer</button>
+
+          <div class="form-group">
+            <div class="input-icon">
+              <i class="fas fa-envelope"></i>
+              <input type="email" placeholder="Email" id="signupEmail" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-icon">
+              <i class="fas fa-lock"></i>
+              <input type="password" placeholder="Mot de passe" id="signupPassword" required>
+            </div>
+            <button type="button" class="toggle-password" id="toggleSignupPassword" tabindex="-1">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+
+          <div class="form-group">
+            <div class="input-icon">
+              <i class="fas fa-lock"></i>
+              <input type="password" placeholder="Confirmer mot de passe" id="signupConfirm" required>
+            </div>
+            <button type="button" class="toggle-password" id="toggleSignupConfirm" tabindex="-1">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+
+          <div class="form-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="acceptTerms" required> J'accepte les conditions d'utilisation
+            </label>
+          </div>
+
+          <button type="submit" class="btn-submit" id="btnSignup">Créer mon compte</button>
+        </form>
+
+        <!-- MODALE RÉINITIALISATION -->
+        <div class="modal hidden" id="forgotModal">
+          <div class="modal-backdrop"></div>
+          <div class="modal-content">
+            <h3>Réinitialisation mot de passe</h3>
+            <p>Entrez votre email pour recevoir un lien</p>
+            <div class="form-group">
+              <div class="input-icon">
+                <i class="fas fa-envelope"></i>
+                <input type="email" placeholder="Votre email" id="resetEmail">
+              </div>
+            </div>
+            <div class="modal-buttons">
+              <button class="btn-modal btn-cancel" id="cancelReset">Annuler</button>
+              <button class="btn-modal btn-send" id="sendReset">Envoyer</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- COLONNE GAUCHE (30%) - Informations AEJ -->
+    <aside class="auth-col-left">
+      <div class="info-card">
+        <div class="info-header">
+          <i class="fas fa-info-circle"></i>
+          <h2>À propos d'AEJ</h2>
+        </div>
+        
+        <div class="info-content">
+          <p>AEJ est l'outil de gestion des fiches des stagiaires de l'Agence Emploi Jeune.</p>
+          
+          <div class="info-section">
+            <h3><i class="fas fa-tachometer-alt"></i> Fonctionnalités</h3>
+            <ul>
+              <li>📁 Upload de fichiers PDF</li>
+              <li>📂 Gestion des catégories</li>
+              <li>📊 Statistiques détaillées</li>
+              <li>📥 Suivi des téléchargements</li>
+              <li>🌙 Mode nuit intégré</li>
+              <li>📱 Interface responsive</li>
+            </ul>
+          </div>
+          
+          <div class="info-section">
+            <h3><i class="fas fa-file-pdf"></i> Format des fichiers</h3>
+            <div class="format-example">
+              <code>[Matricule] [Lettre] [Nom] [Désignation].pdf</code>
+            </div>
+            <p class="example-text">Exemple : <code>19167122 F IPOTE fiche.pdf</code></p>
+          </div>
+          
+          <div class="info-section">
+            <h3><i class="fas fa-lightbulb"></i> Bonnes pratiques</h3>
+            <ul>
+              <li>Nommez les fichiers selon le format</li>
+              <li>Utilisez les filtres pour retrouver vos fichiers</li>
+              <li>Organisez par catégories (filières, types, périodes)</li>
+              <li>Vérifiez les doublons avant upload</li>
+            </ul>
+          </div>
+          
+          <div class="info-note">
+            <i class="fas fa-shield-alt"></i>
+            <p>Vos données sont sécurisées et accessibles uniquement par les administrateurs autorisés.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
   </main>
 
-  <!-- Script JavaScript autonome -->
+  <!-- Scripts -->
+  <script src="js/theme.js"></script>
   <script src="js/auth.js"></script>
 </body>
 </html>
